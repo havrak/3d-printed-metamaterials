@@ -8,7 +8,51 @@
   #link("https://typst.app/project/wBQGVX8CTMedKqXLVoBbtb")[Online Version]
 ]
 
+#let warn(input) = {
+  box(
+    inset: 0.2em,
+    radius: 0.2em,
+    fill: rgb("#ffffff"),
+    stroke: rgb("#ff0000"),
+    text(fill: rgb("#ff0000"), weight: "bold",input)
+  )
+}
+
+#let note(input) = {
+  box(
+    inset: 0.2em,
+    radius: 0.2em,
+    fill: rgb("#ffffff"),
+    stroke: rgb("#0000ff"),
+    text(fill: rgb("#0000ff"), weight: "bold",input)
+  )
+}
+
+#let info(input) = {
+  box(
+    inset: 0.2em,
+    radius: 0.2em,
+    fill: rgb("#00ff00"),
+    stroke: rgb("#00ff00"),
+    text(fill: rgb("#ffffff"), weight: "bold",input)
+  )
+}
+
+#let TODO = warn("TODO")
+#let XXX = warn("XXX")
+#let DELETE = warn("DELETE")
+#let WARN = warn("WARN")
+#let NOTE = note("NOTE")
+#let INFO = info("INFO")
+#let OPTIONAL = info("OPTIONAL")
+#let DONE = info("DONE")
+
+// Usage:
+
+
 #outline()
+
+
 
 #pagebreak()
 = Manufacturing and Design Observations
@@ -24,10 +68,9 @@
 
 - *Varying Infill:*
   - A varying infill level is used in different spatial locations throughout the structure, as shown on a GRIN lens in FFI 2017 @Kristoffersen2017.
-  - This requires the designer to configure the internal infill toolpaths directly.
   - Simulating these arbitrary infill architectures is highly problematic because the complex internal mesh easily becomes uncomputable.
-  - The entire structure must typically be remodeled as a collection of solid domains with discrete, homogeneous effective materials.
-  - This modeling constraint limits the implementation of truly continuous, gradual infill gradients.
+  - The entire structure must typically be remodeled as a collection of solid domains with discrete, homogeneous effective materials - moving to 3D printed model cannot be easily offloaded to slicer.
+  - Material properties (such as loss) will be a property of the infill pattern orientation relative to E field direction.
 
 - *Multiple Materials:*
   - The basic approach resembles a lattice grid, but instead of air gaps, a second material forms the surrounding support structure or alternating cells.
@@ -39,15 +82,96 @@
 - *Design Automation Tools:*
   - Most geometries are easily described by mathematical equations, but manual modeling in classic parametric CAD engines is highly inefficient due to geometric complexity.
   - *CadQuery:* A Python-based programmatic CAD environment that describes models via explicit code loops rather than interactive 2D sketching. This simplifies lattice synthesis and mathematical infill variation, handling high component counts effectively for academic prototype scales.
-  - *nTop:* A commercial engineering tool optimized for additive manufacturing that excels at creating advanced spatial lattices and complex field-driven infill profiles. However, it is not fundamentally integrated with electromagnetic simulation pipelines, meaning exported meshes remain challenging to analyze natively.
+  - *OpenSCAD:* faster real time preview than CadQuery, much slower final output, cannot output to stl I think
 
 == Print Technologies Comparison
 - Three main additive manufacturing techniques are prominently utilized: SLA, SLS, and standard FDM.
 - SLA and SLS are widely adopted due to their high spatial resolution and superior management of complex geometric overhangs without extensive support arrays.
-- FDM is less common in pure dielectrics, finding specific utility in multi-material applications where conductive paths must be integrated directly into a polymer block.
+- *FDM (Fused Deposition Modeling)*
+  - Unable to reliably handle overhangs, applicable only to methods relying on varying infill.
+  - Extrusion nozzle diameters ($>= 0.4 "mm"$) impose lower bounds on minimum spatial feature size, limiting metamaterials primarily to Sub-6 GHz and X-band frequencies.
+  - Setups with multiple print heads enable innovative construction techniques -- use of conductive filaments supported by non conductive one, on instead of controlling ratio of air to filament one can use two filaments with widely different permitivities (However there are problems with different print temperature, how well do the materials combine and such).
 - *SLA (Stereolithography):* FFI characterized SLA resolutions as disappointing for fine-pitch micro-grids, whereas CEI 2022 successfully deployed it to yield a precise 50 mm spherical lens @Kristoffersen2017 @Yue2022.
+  - Seems to be gold standard to
 - *SLS (Selective Laser Sintering):* Essential for the high-quality nylon grids in the FFI study, providing single-step execution of dense internal cavities @Kristoffersen2017. However, clearing unsintered powder from the inner chambers remains a difficult post-processing logistical hurdle.
-- *FDM Multi-Material Extrusion:* Rarer due to material dielectric limits, as the permittivity delta between distinct plastics is smaller than a plastic-to-air boundary, and the co-polymers often introduce higher dielectric losses.
+  - NTUST has printers based on SLS technology
+
+== Materials
+- Foaming PLA:
+  - Increasing volumetric expansion with higher printing temperatures.
+  - GRIN lense printed using this material demonstrated in @Moschner2025.
+- Electrically Conductive filaments
+  - Interesting field of research
+  - Only applicable to FDM and multiple print heads, no other configuration makes sense.
+  - Proto-pasta:
+    - #link("https://proto-pasta.com/products/conductive-pla?variant=27767315720")
+    - PLA with carbon black, prints with standard PLA settings.
+    - 1 cm of 1.75 mmm wire has resistance of about 200 to 350 Ohm
+    - Seems more useful for EMC shielding than making anything that needs to be really conductive.
+    - \$90 per 1.75 mm 1 kg spool
+  - Electrifi Conductive Filament
+    - #link("https://www.multi3dllc.com/product/electrifi/")
+    - Copper-polymer composite, prints at low temperatures around 130-160 degrees - well bellow what's needed for PLA.
+    - Conductivity of 10 000 S/m
+    - Super expensive at \$215 per 1.75 mm 100 g spool (17 meters), offered in 200 g or 500 g spools.
+    - Actually used for antennas or in replacing stacked PCBs to create metamaterials.
+  - Spectrum Electrically Conductive
+    - Enhanced with carbon nano tubes.
+    - PLA based
+      - #link("https://shop.spectrumfilaments.com/product-eng-3298-Spectrum-PLA-Electrically-Conductive-1-75mm-BLACK-0-75kg.html?query_id=1")
+      - Print temperature at the higher end of PLA 210 - 230 degrees.
+      - 4x4x120 mm test print (Idk the orientation so this value is useless) had resistance of 97 to 120 Ohm depending on the print temperature (lower resistance with higher print temperature).
+      - \$70 per 1.75 mm of 750 g spool
+      - Seems price comparable to Proto-pasta, with roughly 4 times lower resistance.
+    - ASA based
+      - #link("https://shop.spectrumfilaments.com/product-eng-3297-Spectrum-ASA-Electrically-Conductive-1-75mm-BLACK-0-75kg.html?query_id=1")
+      - High print temperatures of 270 to 290 degrees.
+      - 4x4x120 mm test print had resistance of 41 to 51 Ohm depending on the print temperature.
+      - \$70 per 1.75 mm of 750 g spool
+      - Again price comparable to Proto-pasta, but with 8 times lower resistance.
+
+#pagebreak()
+= Monolithic Multi-Filament FDM Metamaterials
+- Traditional way of constructing left handed metamaterials (not just materials with varying permitivity) relied on stacking PCBs .
+  - Their alignment needs to be precisely controlled to ensure proper function.
+  - Two possible solutions
+    - Printing support structure from plastic and inserting copper wires, seen it done, but looks incredibly laborious.
+    - Using combination of support filament with conductive one.
+- Dual-filament FDM utilizes an Independent Dual Extruder (IDEX) or multi-hotend toolhead to deposit a dielectric base polymer alongside a conductive composite filament in a single uninterrupted print job.
+- This continuous deposition unlocks genuine three-dimensional spatial meta-atoms, such as vertical helices, embedded inter-unit capacitive walls, and non-planar 3D conductive loops.
+
+== Electrodynamics of Low-Conductivity Filaments vs. Electrifi
+- Standard commercial conductive filaments rely on microscopic carbon black, carbon nanotube, or graphite filler networks dispersed in thermoplastics.
+- These carbon-loaded composite filaments exhibit low electrical conductivity, typically ranging from $sigma approx 0.01 "S/m"$ to hundreds $"S/m"$, with linear resistance measuring in tens to hundreds of $Omega / "cm"$.
+  - At frequency of 1 GHz, a low conductivity of $sigma < 100 "S/m"$ prevents complete boundary reflection, causing incoming waves to penetrate deep into the material where energy is absorbed via ohmic losses. @Xie2017
+  - #WARN I'm not totally sure, to what degree what they've numerically calculated is applicable to composite materials, they blabber about skin depth but simple skin depth calculation isn't applicable to this case and so I would say 100 S/m is quite generous and real conductivity needs to be higher.
+- Low-conductivity filaments fail as high-Q resonant radiators or highly reflective phase-screen elements, but excel as single-step monolithic electromagnetic absorbers and radar cross-section dampeners.
+- Conversely, copper-loaded filaments such as Electrifi achieve significantly higher bulk conductivities ($sigma approx 1.67 times 10^4 "S/m"$), placing them in a distinct performance tier - allowing them to act like a true metallic conductor at microwave bands @Xie2017, @Yurduseven2019
+
+== Inherent Manufacturing Challenges
+- Multi-filament printing introduces severe nozzle cross-contamination and micro-stringing, where minute conductive polymer droplets drag across dielectric boundary zones to create unwanted electrical shorts.
+- Differential thermal expansion coefficients between carbon-filled conductive filaments and pristine dielectric substrates cause severe inter-layer delamination and Z-axis warping during cooling - though  I probably could get some guidance on this.
+
+=== Microwave Metamaterials Made by Fused Deposition (APL 2017)
+- *Source:* _Applied Physics Letters_, vol. 110, no. 18, 2017. @Xie2017
+- *Research Context:* Direct evaluation of high-conductivity metal-polymer composite filament (Electrifi) versus standard carbon-loaded conductive filaments for 3D metamaterials.
+- Methodology & Construction
+  - Utilized dual-material FDM to print three-dimensional conductive unit cell topologies directly into a dielectric matrix, bypassing multi-layer PCB etching and manual stacking.
+  - Analyzed the transition of effective medium parameters across a wide conductivity spectrum from $0.01 "S/m"$ to $10^6 "S/m"$ using EM field simulations.
+- Experimental Findings
+  - Demonstrated that carbon-loaded filaments ($sigma approx 0.01 - 100 "S/m"$) behave primarily as lossy dielectrics with minimal capacitive charge accumulation.
+  - Proved that conductivities exceeding $10^2 "S/m"$ are required to elicit strong artificial permittivity responses reaching up to 14.4 at 1 GHz.
+  - Validated that Electrifi ($sigma approx 1.67 times 10^4 "S/m"$) effectively mimics a perfect conductor at microwave frequencies without PCB stacking alignment errors
+
+===  3D Conductive Polymer Printed Metasurface Antenna for Fresnel Focusing (Designs 2019)
+- *Source:*  _Designs_, vol. 3, no. 3,2017  @Yurduseven2019
+- *Research Context:* holographic metasurface antenna for beam-focusing applications at 10 GHz using Electrifi filament
+- Methodology & Construction
+  - A PLA substrate was sandwiched between two surfaces from Electrifi - one ground plane second a Metasurface
+  - Metasurface layer is patterned into an array of subwavelength slot-shaped metamaterial elements (or meta-elements). These meta-elements couple to the guided mode (or the reference wave) launched into the PLA substrate by a coaxial feed placed in the center of the antenna
+- Experimental Findings
+   -  It was also observed that improving the material conductivity could significantly enhance the radiation characteristics of the proposed antenna.
+   - Antenna exhibited relatively low gain, both lower conductivity and losses in substrate significantly degraded performance of the antenna.
 
 #pagebreak()
 = 3D Printed Metamaterial Lenses for Microwave Antennas
@@ -62,23 +186,18 @@ where $n$ represents the local refraction index, $epsilon_r$ is the relative per
 
 === Design of a metamaterial Luneburg lens antenna (CEI 2022)
 - *Source:* 2022 2nd International Conference on Computer Science, Electronic Information Engineering and Intelligent Control Technology (CEI) @Yue2022
-- *Research Context:* Demonstration of a 50 mm in radius Luneburg lens created using SLA printing, achieved an improvement in gain of 7.41 dB @Yue2022.
-
-==== Methodology & Construction
-- *Unit Cell Design:* Each unit consists of a variable-sized dielectric cube in the center with three connecting rods (0.8 mm fixed width) parallel to the X, Y, and Z axes @Yue2022.
-- A unit period of 5 mm was chosen to be significantly smaller than the center wavelength of the X-band at 10 GHz @Yue2022.
-- The lens was fed from a standard WR-90 waveguide open port without an external antenna element @Yue2022.
-- *Parameter Retrieval:* Used the S-parameter retrieval method proposed by D. R. Smith (2005) to extract equivalent permittivity @Yue2022.
-- *Manufacturing:* Produced a 50 mm radius lens using Stereo Lithography Apparatus (SLA) with C-UV 9400E photosensitive resin ($epsilon_r approx 3.2-4.0$) @Yue2022.
-
-==== Experimental Findings
-- *Gain Improvement:* The antenna gain at 10 GHz was 14.98 dB, a 7.41 dB increase compared to a single waveguide feed @Yue2022.
-- *Calculation of Parameters:* Authors mention a method of calculating permittivity of these periodic structures @Yue2022.
-- First, S-parameters of an individual cube are acquired using an EM field simulator @Yue2022.
-- Then, the permittivity of the structure can be calculated using a specific retrieval formula @Smith2005.
-- No problems regarding simulations or manufacturing using SLA were mentioned in this study @Yue2022.
-- *Beamwidth:* Main lobe width narrowed from 28.26° at 8 GHz to 18.84° at 12 GHz @Yue2022.
-- *Scanning Capability:* The lens rotated 45° with basically unchanged pattern and gain, proving good spatial dynamic scanning ability @Yue2022.
+- *Research Context:* Demonstration of a 50 mm in radius Luneburg lens created using SLA printing, achieved an improvement in gain of 7.41 dB.
+- Methodology & Construction
+  - Unit Cell Design: Each unit consists of a variable-sized dielectric cube in the center with three connecting rods (0.8 mm fixed width) parallel to the X, Y, and Z axes.
+  - A unit period of 5 mm was chosen to be significantly smaller than the center wavelength of the X-band at 10 GHz.
+  - The lens was fed from a standard WR-90 waveguide open port without an external antenna element.
+  - Parameter Retrieval: Used the S-parameter retrieval method proposed by D. R. Smith (2005) to extract equivalent permittivity.
+  - Manufacturing: Produced a 50 mm radius lens using Stereo Lithography Apparatus (SLA) with C-UV 9400E photosensitive resin ($epsilon_r approx 3.2-4.0$).
+- Experimental Findings
+  - The antenna gain at 10 GHz was 14.98 dB, a 7.41 dB increase compared to a single waveguide feed @Yue2022.
+  - No problems regarding simulations or manufacturing using SLA were mentioned in this @Yue2022, however @Kristoffersen2017 needed to use SLS
+  - The lens rotated 45° with basically unchanged pattern and gain, proving good spatial dynamic scanning ability.
+    - Interesting that the losses don't shift much, one would have thought there would be an larger difference.
 
 
 == GRIN (Gradient Index) Lenses
@@ -87,28 +206,8 @@ $ n(r)^2 = epsilon_r(r) = (n_0 - (sqrt(L^2+r^2)-L)/t)^2 $
 where $n_0$ is the refractive index at 100% material infill, $r$ is the radial offset from the axis, $L$ is the focal length, and $t$ represents the physical thickness of the lens disk @Kristoffersen2017.
 - These geometries are sometimes classified alongside or compared directly to flat Fresnel zone plate configurations due to their planar layout.
 - The structural simplicity of the radial distribution makes it fully compatible with low-cost FDM extrusion tracks, serving as an optimal baseline for experimental validation.
-
-=== 3D Printed Metamaterial Lenses for Microwave Antennas
-- *Source:* FFI-RAPPORT 17/00415 @Kristoffersen2017
-- *Research Context:* Exploratory study financed by the Norwegian Defence Research Establishment (FFI) to build competence in materials with spatially varying permittivity for military applications.
-- *Filename:* 17-00415.pdf
-
-==== Methodology & Construction
-- *Unit Cell Design:* The study utilized a 3.55 mm lattice grid structure built by unit cubes intersected in three spatial directions
-- The structure realized was a GRID lens, but varying density was achieved using a 3D lattice grid structure.
-- *Material Selection:* Used PA2200 nylon, initially believed to have $epsilon_r approx 3.6$ (glass-mixed version), but measured at $epsilon_r approx 2.5 - 2.8$ for 100% density.
-- *Simulations:* Performed using ANSYS HFSS, modeling $epsilon_r$ vs. frequency for various cube sizes.
-
-==== Experimental Findings
-- *Test Case 1 (Lattice Blocks):* Achieved a span in measured $epsilon_r$ from 1.25 to 2.45.
-- *Test Case 2 (Flat Lens):* Demonstrated a frequency-independent gain increase of approximately 3 dB over the 8-18 GHz range.
-- *Loss Characteristics:* Measurements with the lens at the antenna aperture showed very little loss, confirming the efficiency of the metamaterial approach.
-- *3D Printing Challenges:* Authors mentioned repeated failures when trying to use standard SLA 3D printing and were forced to rely on SLS.
-- Even in SLS they had to use a higher minimum thickness of 0.7 mm than desired.
-- It is vital to measure the permittivity of the material manufactured using the same process as the final lens @Kristoffersen2017.
-- The measured permittivity will be smaller than that of the material itself @Kristoffersen2017.
-- The measured structures should probably have the same form as those used in the final lens @Kristoffersen2017.
-- Authors reported significant problems in simulating the structure using ANSYS HFSS @Kristoffersen2017.
+- Rather thorough exploration of the topic in @Grigoriev2022, wouldn't say it's a prospective topic for the thesis
+  - different approaches also demostrated in @Kristoffersen2017 (using Lattice Structure), @Paraskevopoulos2022 (optimized design),  or @Moschner2025 (Foaming PLA)
 
 
 #pagebreak()
