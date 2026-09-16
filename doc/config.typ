@@ -43,8 +43,8 @@
     inset: 0.2em,
     radius: 0.2em,
     fill: rgb("#ffffff"),
-    stroke: rgb("#ff0000"),
-    text(fill: rgb("#ff0000"), weight: "bold", input)
+    stroke: rgb("#B71C1C"),
+    text(fill: rgb("#B71C1C"), weight: "bold", input)
   )
 }
 
@@ -53,8 +53,8 @@
     inset: 0.2em,
     radius: 0.2em,
     fill: rgb("#ffffff"),
-    stroke: rgb("#0000ff"),
-    text(fill: rgb("#0000ff"), weight: "bold", input)
+    stroke: rgb("#283593"),
+    text(fill: rgb("#283593"), weight: "bold", input)
   )
 }
 
@@ -62,13 +62,32 @@
   box(
     inset: 0.2em,
     radius: 0.2em,
-    fill: rgb("#00ff00"),
-    stroke: rgb("#00ff00"),
+    fill: rgb("#76FF03"),
+    stroke: rgb("#76FF03"),
     text(fill: rgb("#ffffff"), weight: "bold", input)
   )
 }
 
-#let XXX = warn("XXX")
+#let cool(input) = {
+  box(
+    inset: 0.2em,
+    radius: 0.2em,
+    fill: rgb("#2196F3"),
+    stroke: rgb("#2196F3"),
+    text(fill: rgb("#ffffff"), weight: "bold", input)
+  )
+}
+
+#let high(input) = {
+  box(
+    inset: 0.2em,
+    radius: 0.2em,
+    fill: rgb("#EC407A"),
+    stroke: rgb("#EC407A"),
+    text(fill: rgb("#ffffff"), weight: "bold", input)
+  )
+}
+
 #let DELETE = warn("DELETE")
 #let WARN = warn("WARN")
 #let TODO = note("TODO")
@@ -76,3 +95,6 @@
 #let INFO = info("INFO")
 #let OPTIONAL = info("OPTIONAL")
 #let DONE = info("DONE")
+#let FAV = high("FAV")
+#let COOL = cool("COOL")
+
