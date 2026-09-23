@@ -48,7 +48,7 @@
   )
 }
 
-#let note(input) = {
+#let todo(input) = {
   box(
     inset: 0.2em,
     radius: 0.2em,
@@ -62,8 +62,8 @@
   box(
     inset: 0.2em,
     radius: 0.2em,
-    fill: rgb("#76FF03"),
-    stroke: rgb("#76FF03"),
+    fill: rgb("#33691E"),
+    stroke: rgb("#33691E"),
     text(fill: rgb("#ffffff"), weight: "bold", input)
   )
 }
@@ -90,8 +90,7 @@
 
 #let DELETE = warn("DELETE")
 #let WARN = warn("WARN")
-#let TODO = note("TODO")
-#let NOTE = note("NOTE")
+#let TODO = todo("TODO")
 #let INFO = info("INFO")
 #let OPTIONAL = info("OPTIONAL")
 #let DONE = info("DONE")
