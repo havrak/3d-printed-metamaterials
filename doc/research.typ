@@ -30,7 +30,7 @@
 - *Design Automation Tools:*
   - Most geometries are easily described by mathematical equations, but manual modeling in classic parametric CAD engines is highly inefficient due to geometric complexity.
   - *CadQuery:* A Python-based programmatic CAD environment that describes models via explicit code loops rather than interactive 2D sketching. This simplifies lattice synthesis and mathematical infill variation, handling high component counts effectively for academic prototype scales.
-  - *OpenSCAD:* faster real time preview than CadQuery, much slower final output, cannot output to stl I think
+  - *OpenSCAD:* faster real time preview than CadQuery, much slower final output, cannot output to STL I think.
 
 == Print Technologies Comparison
 - Three manufacturing techniques are prominently utilized: SLA, SLS, and standard FDM.
@@ -50,11 +50,23 @@
       - Using combination of support filament with conductive one.
   - Multi-filament printing introduces severe nozzle cross-contamination and micro-stringing, where minute conductive polymer droplets drag across dielectric boundary zones to create unwanted electrical shorts.
   - Differential thermal expansion coefficients between carbon-filled conductive filaments and pristine dielectric substrates cause severe inter-layer delamination and Z-axis warping during cooling - though  I probably could get some guidance on this.
+- Infill in Small Cross-Sections and Confined Spaces:
+  - Generating sparse internal infill within small features (e.g., $10 - 12 "mm"$ pillars) forces the print head into rapid start-stop cycles over minimal travel distances, preventing steady-state extrusion.
+  - Abrupt direction reversals under standard acceleration and jerk thresholds transfer high-frequency mechanical shock to the frame and gantry, which manifests as ringing or ghosting on adjacent outer walls @All3DPGhosting.
+  - Nozzle pressure compensation (pressure advance) fluctuates during rapid consecutive retractions and unretractions across sub-centimeter gaps, triggering local under-extrusion or surface blobbing.
+  - Confined toolhead paths continuously pool localized heat, requiring strict minimum layer cooling thresholds to prevent thermal softening and perimeter corner curling.
+  - Standard mitigation entails replacing interior infill entirely with concentric perimeters/walls, as continuous loop paths optimize exterior dimensional tolerance and structural rigidity @PrusaInfillPatterns.
 
 === SLA (Stereolithography)
 - high resolutions, able to do overhangs with some consideration
 - fairly frequently used, though some paper struggle with it for some reasons (even though their geometry doesn't seem to be that complicated)
 - in case of composites there is a risk of sedimentation and loss of uniformity of the material
+- Infill, Hollowing, and Internal Voids in Small Features:
+  - SLA is physically unsuited for internal lattice infill or hollowing inside small cross-sections ($<= 15 "mm"$), and such geometries must be printed 100% solid.
+  - Enclosed internal voids generate suction cup forces against the release film during the Z-axis peel cycle, resulting in layer separation, horizontal suction banding, or support failure @Dreaming3DSuction.
+  - Mitigating suction requires dual vent and drainage apertures (minimum diameter $2 - 3 "mm"$), which are impractical to integrate into sub-centimeter cavities without degrading wall integrity @FormlabsHollowing.
+  - High surface tension and capillary action trap viscous uncured monomer within narrow internal voids, impeding solvent flow during isopropyl alcohol (IPA) washing stages.
+  - Trapped liquid resin generates hydraulic overpressure during downward build-plate repositioning, causing thin perimeter blowouts; unreacted monomer left sealed inside eventually outgases and causes delayed osmotic cracking.
 
 === SLS (Selective Laser Sintering):
 - essential for the high-quality nylon grids in the FFI study, providing single-step execution of dense internal cavities
@@ -78,11 +90,11 @@
     - At $190 degree"C"$ the volumetric expansion is 100~\% at $260 degree"C"$ 280~\% (higher temperature will start decreasing the ratio)
     - This results in a shift of permittivity from 2.66 to 1.31
 
-== High Permitivity Filaments
+== High Permittivity Filaments
 - Unfilled baseline polymers uniformly demonstrate low relative permittivity ($epsilon_r$) between 2.0 and 3.0.
   - Micro-voids caused by high feedstock viscosity and volatile outgassing systematically degrade the bulk dielectric constant.
   - Similarly some materials are for examples hygroscopic -- absorption of water/humidity increases $"tan" delta$ and deceases $epsilon_r$
-- High permittivity filaments are created using blending standard polymer matrices with ceramic nanoparticles like barium titanate, titanium dioxide, or alumina.
+- High permittivity filaments are created by blending standard polymer matrices with ceramic nanoparticles like barium titanate, titanium dioxide, or alumina.
 - In SLA or other technologies relying on liquid materials can dense ceramic fillers undergo gravity-driven sedimentation before localized UV curing occurs.
   - This precipitation induces unintended anisotropic permittivity gradients along the vertical build axis.
   - Non-uniform particulate distribution minimizes interfacial polarization and inhibits maximum effective permittivity.
@@ -99,6 +111,7 @@
 - PREPERM ABS filaments
   - wide range of permittivities from 2.55 to 23, while being low loss
   - @Valdes2023 managed to get filament from Avient no idea what the price is or what are it's properties, Avient only does B2B and no information is publicly available.
+  - @Zhang2017 also mentions them, however they've added submicron additives manually to the base PREPERM filament
 - TPU
   - Unfilled, pure TPU exhibits a relative permittivity ($epsilon_r$) ranging from 3.6 to 8.0, heavily dependent on the Shore hardness and specific chemical backbone (polyether versus polyester) @CovestroTPU.
   - TPU is hydroscopic material - permittivity will futher shift down after manufacturing.
@@ -185,7 +198,7 @@
 - Low-conductivity filaments fail as high-Q resonant radiators or highly reflective phase-screen elements, but excel as single-step monolithic electromagnetic absorbers and radar cross-section dampeners.
 - Conversely, copper-loaded filaments such as Electrifi achieve significantly higher bulk conductivities ($sigma approx 1.67 times 10^4 "S/m"$), placing them in a distinct performance tier - allowing them to act like a true metallic conductor at microwave bands @Xie2017, @Yurduseven2019. However even at $sigma approx 1.67 times 10^4 "S/m"$ performance of the final structure isn't that great.
 
-=== Microwave Metamaterials Made by Fused Deposition (APL 2017)
+=== Microwave Metamaterials Made by Fused Deposition
 - *Source:* _Applied Physics Letters_, vol. 110, no. 18, 2017. @Xie2017
 - *Research Context:* Direct evaluation of high-conductivity metal-polymer composite filament (Electrifi) versus standard carbon-loaded conductive filaments for 3D metamaterials.
 - Methodology & Construction
@@ -199,7 +212,7 @@
 
 
 #pagebreak()
-= Permitivity Measurement
+= Permittivity Measurement
 - Accurate measurement of material properties is necessary for structure design and simulation.
   - Full-scale metamaterial structures are computationally prohibitive, necessitating the extraction of accurate localized surrogate models.
 - *3D-printed metamaterials exhibit two superimposed layers of electromagnetic anisotropy.*
@@ -297,7 +310,7 @@
   - Accommodates flat, solid materials and complex porous 3D-printed lattices without requiring the samples to be perfectly machined to fit inside a closed metallic waveguide @Hehenberger2022.
 - *Critical Limitations:*
   - Multiple different cuts/models need to be created in order to map the anisotropy of the material - measurement is only in one axis.
-  - Because the system relies entirely on resonance, the extracted permittivity and loss tangent are valid only at that single resonant frequency point -- different ring resonators would need to be used to map out permitivity in discrete steps over larger interval.
+  - Because the system relies entirely on resonance, the extracted permittivity and loss tangent are valid only at that single resonant frequency point -- different ring resonators would need to be used to map out permittivity in discrete steps over larger interval.
   - Zero Dispersion Insight: The method provides no data regarding the broadband behavior, spatial dispersion, or frequency-dependent loss profile of the printed material.
   - Cutoff Frequency Obfuscation: For periodic 3D-printed structures, the effective medium approximation breaks down at higher frequencies when the internal lattice constant approaches the operating wavelength. The resonant method is inherently incapable of detecting or characterizing this upper cutoff frequency.
 
@@ -330,44 +343,6 @@
     - The intrinsic bulk permittivity of the 3D-printing filament is then tuned via nonlinear optimization algorithms until the simulated S-parameters converge precisely with the empirical VNA measurements.
 
 #pagebreak()
-= 3D Printed Metamaterial Lenses for Microwave Antennas
-
-== Luneburg Lenses
-- *Mechanism:* Spherical structure with a smoothly decreasing refractive index as radial distance from the geometric center increases.
-- *Design Rule:* Theoretically follows the profile:
-$ n(r)^2 = epsilon_r(r) = 2 - (r/R)^2 $
-where $n$ represents the local refraction index, $epsilon_r$ is the relative permittivity, and $R$ is the total outer radius of the lens @Kristoffersen2017.
-- Standard traditional manufacturing methods make the generation of smooth continuous 3D index gradients highly impractical.
-- In additive implementations, the gradient is generated by varying the dimensions of a subwavelength unit cell cube positioned systematically at distinct grid intersection points @Yue2022.
-
-=== Design of a metamaterial Luneburg lens antenna (CEI 2022)
-- *Source:* 2022 2nd International Conference on Computer Science, Electronic Information Engineering and Intelligent Control Technology (CEI) @Yue2022
-- *Research Context:* Demonstration of a 50 mm in radius Luneburg lens created using SLA printing, achieved an improvement in gain of 7.41 dB.
-- Methodology & Construction
-  - Unit Cell Design: Each unit consists of a variable-sized dielectric cube in the center with three connecting rods (0.8 mm fixed width) parallel to the X, Y, and Z axes.
-  - A unit period of 5 mm was chosen to be significantly smaller than the center wavelength of the X-band at 10 GHz.
-  - The lens was fed from a standard WR-90 waveguide open port without an external antenna element.
-  - Parameter Retrieval: Used the S-parameter retrieval method proposed by D. R. Smith (2005) to extract equivalent permittivity.
-  - Manufacturing: Produced a 50 mm radius lens using Stereo Lithography Apparatus (SLA) with C-UV 9400E photosensitive resin ($epsilon_r approx 3.2-4.0$).
-- Experimental Findings
-  - The antenna gain at 10 GHz was 14.98 dB, a 7.41 dB increase compared to a single waveguide feed @Yue2022.
-  - No problems regarding simulations or manufacturing using SLA were mentioned in this @Yue2022, however @Kristoffersen2017 needed to use SLS
-  - The lens rotated 45° with basically unchanged pattern and gain, proving good spatial dynamic scanning ability.
-    - Interesting that the losses don't shift much, one would have thought there would be an larger difference.
-
-
-== GRIN (Gradient Index) Lenses
-- *Mechanism:* Planar structures exhibiting radial permittivity gradients typically expressed as:
-$ n(r)^2 = epsilon_r(r) = (n_0 - (sqrt(L^2+r^2)-L)/t)^2 $
-where $n_0$ is the refractive index at 100% material infill, $r$ is the radial offset from the axis, $L$ is the focal length, and $t$ represents the physical thickness of the lens disk @Kristoffersen2017.
-- These geometries are sometimes classified alongside or compared directly to flat Fresnel zone plate configurations due to their planar layout.
-- The structural simplicity of the radial distribution makes it fully compatible with low-cost FDM extrusion tracks, serving as an optimal baseline for experimental validation.
-- Rather thorough exploration of the topic in @Grigoriev2022, wouldn't say it's a prospective topic for the thesis
-  - different approaches also demostrated in @Kristoffersen2017 (using Lattice Structure), @Paraskevopoulos2022 (optimized design),  or @Moschner2025 (use of foaming PLA)
-
-
-
-#pagebreak()
 = Metamaterial-Based Antennas
 
 == Metantennas and Resonant Surfaces
@@ -377,7 +352,7 @@ where $n_0$ is the refractive index at 100% material infill, $r$ is the radial o
   - Losses in the dielectric and limited conductivity degrade the performance significantly.
   - Printing layer variations and infill density fluctuations alter the local effective permittivity, shifting the antenna's tuned resonant frequency.
 
-=== Low-Profile 3-D Printable Metastructure for Aperture Antennas (Scientific Reports 2024) #COOL
+=== Low-Profile 3-D Printable Metastructure for Aperture Antennas #COOL
 - *Source:* _Scientific Reports_, vol. 14, 2024 @Ali2024.
 - *Research Context:* Enhancement of broadside directivity and radiation efficiency using a low-profile 3D-printed meta-superstrate.
 - Methodology & Construction
@@ -389,7 +364,7 @@ where $n_0$ is the refractive index at 100% material infill, $r$ is the radial o
 - Personal notes
   - quite interesting, requires copper inserts into the structure, but looks reasonably manufacturable.
 
-=== 3D Conductive Polymer Printed Metasurface Antenna for Fresnel Focusing (Designs 2019)
+=== 3D Conductive Polymer Printed Metasurface Antenna for Fresnel Focusing
 - *Source:*  _Designs_, vol. 3, no. 3,2017  @Yurduseven2019
 - *Research Context:* holographic metasurface antenna for beam-focusing applications at 10 GHz using Electrifi filament
 - Methodology & Construction
@@ -413,7 +388,7 @@ where $n_0$ is the refractive index at 100% material infill, $r$ is the radial o
 
 === Existing Research
 
-==== 3D Printed Spiral Leaky-Wave Antenna with Circular Polarization (IEEE OJAP 2023) #COOL
+==== 3D Printed Spiral Leaky-Wave Antenna with Circular Polarization #COOL
 - *Source:* _IEEE Open Journal of Antennas and Propagation_, vol. 4, 2023 @Valdes2023.
 - *Research Context:* Design, manufacturing, and RF validation of an additively manufactured, fully dielectric leaky-wave antenna operating at 18 GHz that synthesizes high-gain broadside circular polarization using an Archimedean spiral corrugation.
 - Methodology & Construction
@@ -430,11 +405,31 @@ where $n_0$ is the refractive index at 100% material infill, $r$ is the radial o
   - Surprisingly good parameters while being relatively cheap to manufacture
   - They also use the PREPERM materials so it appears it's possible to get them shipped in a filament spool form.
 
+==== LW ADS on Perforated Dielectric Spacer for Wide-Angle Beam Tilt
+- *Source:* _IEEE Transactions on Antennas and Propagation_, vol. 71, no. 6, 2023 @Kaji2023.
+- *Research Context:* A leaky-wave antenna with dielectric superstrate (LW ADS) using a periodically perforated dielectric spacer to achieve wide-angle tilted-beam radiation at X-band with a single feed.
+- Methodology & Construction
+  - The antenna consists of a ground plane, a half-filled perforated dielectric spacer (HDPE, $epsilon_r = 2.34$), and a dielectric superstrate (soda-lime glass, $epsilon_r = 6.8$). A standard WR-90 waveguide feed is placed at the center of the ground plane.
+  - The dielectric spacer is perforated with a square lattice of cylindrical air holes ($p = 10 "mm"$). The effective permittivity $epsilon_("reff")$ is controlled by the hole radius $r$ via the volume-averaging relation:
+    $ epsilon_("reff") = epsilon_("rsub") + (1 - epsilon_("rsub")) (pi r^2) / p^2 $
+    yielding a tuning range $1.29 <= epsilon_("reff") <= 2.34$ for HDPE.
+  - Only one half of the dielectric spacer is filled with perforated dielectric ($x < 0$), while the other half is left as air ($x > 0$). This asymmetric structure creates a *quasi-cutoff region* on the air side where leaky-wave modes cannot propagate — confining radiation to a single direction.
+  - By adjusting the hole radius alone ($r = 4.3$, 3.4, 1.9 mm), three different beam angles were realized with the *same antenna height*, which is critical for multibeam arrays on uniform-height mounting surfaces.
+- Experimental Findings
+  - Measured tilted beams at $theta = 21 degree$, $40 degree$, and $52 degree$ with peak gains exceeding 14 dBi across all three configurations at 10 GHz.
+  - The quasi-cutoff region successfully suppressed the unwanted broadside radiation mode that typically appears at large tilt angles — a problem that plagued previous LW ADS designs.
+  - The directivity gain $G_d$ of LW ADS is proportional to $epsilon_(r 2) / epsilon_(r 1)$ — using perforated dielectric to achieve $epsilon_("reff")$ close to 1 while maintaining the structural integrity of a solid spacer maximizes the gain-to-height ratio.
+  - Frequency range of 8-11 GHz for stable single-beam operation; at higher frequencies a secondary beam appears from the air-side region.
+  - By controlling effective permittivity purely through hole geometry (not through changes in spacer height), an array of LW ADS elements with different beam directions can share a uniform mechanical profile — enabling a switched-feed multibeam antenna system with a flush mounting surface.
+- *Personal notes*
+  - This is a good example of a*relatively simple, well-executed leaky-wave antenna design. The physics is not novel (perforated dielectrics for permittivity control, asymmetric spacer for unidirectional radiation), but the integration of both concepts to achieve wide-angle beam steering at uniform height is clean and practical.
+  - #INFO The quasi-cutoff concept is a cool — rather than using an absorber or complex termination, the air-half of the spacer simply does not support a guided mode. This is essentially a *modal* approach to suppressing the backward wave, distinct from the impedance-tapering approach discussed in the Monolithic Matched Termination research proposal. However in the forward direction there should still be unwanted radiation
+  - While not 3D printed the dielectric spacer design is compatible with 3D printing technology
 
 === Possible Research Areas for Leaky-Wave Antennas
 
-==== Monolithic Multi-Material Matched Terminations for LWAs #FAV
-- #INFO: would need to verify how large of a problem is the lack of proper termination, study would probably necessitate constructing two antennas to verify the improvement
+==== Monolithic Multi-Material Matched Terminations for LWAs
+- #INFO: Ruled out for the thesis — requires dual-extruder FDM with conductive/lossy filament, which is not available. However, it would be an interesting research topic
 - *Underlying Electrodynamic Problem:*
   - Traveling-wave and leaky-wave antennas inherently retain residual guided power at the distal end of the aperture ($approx 10 - 20\%$) to maintain reasonable aperture efficiency @Monticone2015.
   - Unradiated residual power reflecting off an open termination launches a backward-traveling wave that creates high sidelobes, distorts main-beam directivity, and degrades the axial ratio in circularly polarized apertures.
@@ -446,61 +441,113 @@ where $n_0$ is the refractive index at 100% material infill, $r$ is the radial o
   - An abrupt material interface between low-loss dielectric ($Z_0$) and lossy composite ($Z_L$) causes severe back-reflection.
   - Reflectionless energy transfer requires continuous spatial impedance tapering over an axial length $L >= lambda_g / 2$:
   $ Z(z) = Z_0 exp(1/2 ln(Z_L / Z_0) (z / L)) $
-  - This continuous function is discretized into interlocking subwavelength geometric wedges or pyramid arrays where lossy filament volume fraction increases monotonically along the propagation axis.
+  - This continuous function is discretized into interlocking subwavelength geometric wedges where lossy filament volume fraction increases monotonically along the propagation axis.
   - Alternatively, variable-density infill or dual-tool spatial dithering smoothly shifts the complex effective permittivity:
   $ epsilon_("eff")(z) = epsilon'_("eff")(z) - j epsilon''_("eff")(z) $
   maintaining $epsilon'_("eff")$ matching while gradually ramping $epsilon''_("eff")$ to attenuate the forward traveling wave.
 - *Research Value:*
   - I haven't found even a single study doing this.
-- *Material Selection and Practical FDM Integration:*
-  - *Static Dissipative PLA by Proto-pasta ESD:*
-    - High surface resistivity ($10^6 - 10^9 Omega / "sq"$) allows gradual, distributed attenuation over extended electrical lengths without severe localized heating.
-    - Generally all carbon-loaded filaments with low percentage of filling are applicable for this usecase.
-    - Filaments have the same print settings as non conductive ones -- useful for printers with interchangeable extruders, not to mention print bed settings can remain constant.
-  - *Conductive Carbon-Loaded TPU:*
-    - Combines molecular dipolar relaxation loss with conductive ohmic dissipation.
-    - High flexibility and viscoelastic mismatch increase risk of extruder buckling, stringing across dielectric voids, however it can be done.
-    - One of the material with higher losses that is fairly easy to commercially acquire with many possible suppliers.
+  - However many designs of LWAs are done in such a way that the guided mode cannot really exist past end of the antenna, which also solves the problem somewhat (e.g. it transitions into structure acting as subcritical waveguide)
 
-==== Continuous Sinusoidal Reactance Surfaces via Foaming PLA
-- *Concept:* Standard 3D-printed LWAs discretize periodic modulation into square pulses (blocks of material vs. air). This abrupt quantization excites higher-order space harmonics ($n = -2, -3$, etc.), which can leak as unwanted grating lobes and reduce aperture efficiency.
-  - #WARN This kinda falters when considering that many LWA's that use more complex unit cell design - for example ones with cylindrical cutouts where the transition is already fairly continuous and somewhat sinusoidal.
-- *Mechanism:* Utilizing active temperature modulation of the FDM hotend during the print, the volumetric expansion of Foaming PLA (PolyLite LW-PLA or ColorFabb LW-PLA) can be continuously varied.
+==== Continuous Sinusoidal Reactance Surfaces via Different Methods
+- #INFO either it would take essentially  the same approach as @Araghi2024 only twist it 90 degrees (which would probably degrade the perforamce given the orientation of electric field) or it would be pain dealing with Foaming PLA, not to mention achievable spread of permittivities with just expansion isn't that high
+- *Concept:* There needs to be a sinusoidal change in permittivity in order to work as a leaky-wave and not excite higher-order spatial harmonics @Araghi2024.
+  - Basic designs will just interchange blocks of dielectric and air - producing higher-order spatial harmonics.
+  - More advance ones use complex unit cells or realize the sinusoidal pattern in $z$ axis
+- *Mechanism 1:* Utilizing active temperature modulation of the FDM hotend during the print, the volumetric expansion of Foaming PLA (PolyLite LW-PLA or ColorFabb LW-PLA) can be continuously varied.
+- *Mechanism 2:* Utilizing differing infill level to modulate the permittivity (the infill will still have sinusoidal pattern so it's not tha different from modulating height in $z$)
 - *Research Value:*
-  - Don't think anybody has done it use of Aero PLA or other foaming filaments is fairly novel
-  - Instead of a square-wave permittivity profile, the LWA is printed with a mathematically continuous, sinusoidal spatial permittivity gradient.
+  - Don't think anybody has done it - be it modulating infill or using foaming PLA
+  - Instead of a square-wave permittivity profile, the LWA is printed with a mathematically somewhat continuous, sinusoidal spatial permittivity gradient.
   - A pure sinusoidal modulation theoretically couples energy *only* into the $n = -1$ radiating harmonic, suppressing all other parasitic modes and grating lobes, maximizing directivity and radiation efficiency.
 - *Challenges:* \
-  - Establishing a highly accurate, calibrated mapping between the G-code extrusion temperature, the resulting physical void fraction, and the extracted RF permittivity.
-  - Need to develop completely new slicer, or more likely a program that would generate the gcode directly.
-  - Print times would be long with need to constantly adjust nozzle temperature and wait for it to settle.
+  - For Foaming PLA:
+    - It's necessary to establish a highly accurate, calibrated mapping between the G-code extrusion temperature, the resulting physical void fraction, and the extracted RF permittivity.
+    - Print times would be long with need to constantly adjust nozzle temperature and wait for it to settle.
+    - Change in volume of foaming filaments is roughly 3 times between highest and lowest - so the change in permittivity probably wont be that large.
+  - Both necessitate development of completely new slicer, or more likely a program that would generate the gcode directly.
 
-==== Chirped Conformal LWAs with Pre-Distorted Geometries #FAV
+==== Chirped Conformal LWAs with Pre-Distorted Geometries
 - *Concept:*
   - Mounting a standard periodic leaky-wave antenna onto a curved aerodynamic surface fundamentally bends the electromagnetic propagation axis.
   - This conformal curvature introduces a severe non-linear phase error ($Delta phi$) across the radiating aperture.
   - Uncompensated phase errors cause the main beam to defocus, directly collapsing the directivity and elevating parasitic side-lobe levels.
   - Standard planar printed circuit board manufacturing cannot easily pre-distort the substrate thickness or internal dielectric density to match the required phase gradient on a highly curved surface.
 - *Mechanism:*
-  - An inverse-design methodology is deployed where the unit-cell periodicity ($p$) and the effective dielectric constant ($epsilon_("eff")$) are progressively altered, or chirped, along the curved propagation axis @Bartley2025.
-  - To synthesize a highly directive, collimated plane wave from an arbitrary curve, the phase of the leaking wave must satisfy a precise spatial gradient.
-  - Additive manufacturing enables this phase correction by continuously modifying the internal geometric fill fraction to tune the effective dielectric constant at every discrete spatial coordinate.
+  - An inverse-design methodology is deployed where the unit-cell periodicity ($p$) and the effective dielectric constant ($epsilon_("eff")$) are progressively altered along the curved propagation axis @Bartley2025.
+  - Additive manufacturing would enables this phase correction by continuously modifying the internal geometric fill fraction to tune the effective dielectric constant at every discrete spatial coordinate.
 - *Research Value:*
   - Very little research has been done on these.
-  - This approach validates the unique capability of 3D printing to fabricate non-uniform, spatially varying electromagnetic structures that are geometrically impossible to machine via traditional subtractive milling.
-  - By locally tuning both the propagation constant ($beta(z)$) to align the phase front and the attenuation constant ($alpha(z)$) to control aperture illumination, the conformal LWA can synthesize a perfectly collimated high-gain plane wave directly from a highly curved physical structure.
+  - Utilizes unique capability of 3D printing to fabricate non-uniform, spatially varying structures that are geometrically impossible/hard to manufacture using traditional subtractive milling.
   - Recent studies employing effective dielectric constant modeling demonstrate that 3D-printable pre-distorted unit cells can scan coherent phase fronts over $plus.minus 28 degree$ directly from cylindrical surfaces @Bartley2025.
 - *Challenges:*
-  - The deterministic CAD generation for these conformal topologies cannot rely on simple linear arrays or standard planar microwave layout tools.
-  - There will be massive problems with anisotropy.
-    - If unit cells aren't always in parallel with the local surface normal, that is permitivity tensor isn't invariant there will be some error.
-    - Even if unit cell is rotated correctly the raster lines of 3D printer lead inherently to anisotropic environment.
-    - 3D print parameters must be rigorously characterized and mathematically inverted during the initial dispersion mapping phase.
+  - CAD workload is more complex, highly accurate surrogate model of the unit cell needs to be created and validated.
+  - Beamforming is already complicated, this is doing beamforming on a more complex geometry. (But one other students under Ding Bing Lin is alterad working on beamforming using basic structure from @Kaji2023)
+  - There will be problems with anisotropy.
+    - If unit cells aren't always in parallel with the local surface normal there will be some error.
+    - Even if unit cell is rotated correctly the raster lines of 3D printer lead inherently to anisotropic environment -- 3D print parameters must be rigorously characterized.
+
+
+==== Open Stopband Suppression in All-Dielectric 3D-Printed Periodic LWAs
+- *Underlying Electromagnetic Problem:*
+  - At broadside radiation ($beta_n = 0$), reflections from individual periodic unit cells in a grating-type LWA add constructively in-phase back to the input port, creating an open stopband (OSB) characterized by  impedance mismatch and a radiation null @Monticone2015.
+  - In metallic LWAs, OSB suppression is well-studied: asymmetric unit cells, matching stubs, quarter-wave transformers, and transversal asymmetry have all been demonstrated @Monticone2015 and @Liu2018.
+  - In *dielectric-only* 3D-printed LWAs, OSB suppression is barely studied
+    - The spiral LWA of @Valdes2023 inherently suppresses the OSB through continuous rotational asymmetry, but this is tied to the spiral geometry and does not generalize to linear grating-type LWAs
+    - The dual-grating shifted structure of @Francois2026 closes the bandgap through longitudinal offset of two grating layers — a fundamentally different mechanism tied to their ground-plane-free ceramic design.
+    - There is no systematic study of OSB suppression techniques for simple, single-material, FDM-printable dielectric grating LWAs utilizing conventional construction with ground plane.
+- *Research Value:*
+  - Directly addresses a known fundamental problem (OSB) in an under-explored domain.
+  - Simulation-heavy but fabrication-light: unit cell dispersion analysis in HFSS/CST for each candidate geometry, followed by printing and measuring 1-2 promising prototypes.
+  - Single filament, simple rectangular geometries, standard FDM — no exotic requirements.
+- *Challenges:*
+  - Dispersion analysis (Bloch-wave extraction from unit cell S-parameters) is computationally intensive — requires careful simulation setup.
+  - The OSB suppression mechanism must be validated not just in simulation ($|S_{11}|$ and $beta$ vs. frequency) but also in far-field pattern measurements — broadside gain collapse is the definitive signature of an unsuppressed OSB.
+  - Simulations would likely need to be run on true geometry not surrogate model - which is usually sufficient to capture the desired leaky wave behavior.
+
+==== Tapered Aperture Illumination for 3D-Printed Dielectric LWAs
+- *Underlying Electromagnetic Problem:*
+  - Most 3D-printed dielectric LWAs use *uniform* grating geometries — same tooth height, same fill factor, same period throughout the entire aperture @Valdes2023, @Kaji2023, @Francois2026.
+  - A uniform grating produces an *exponentially decaying* aperture field distribution.
+  - This non-uniform illumination reduces aperture efficiency (the aperture is under-utilized near the distal end) and produces asymmetric sidelobes that cannot be independently controlled.
+  - In metallic LWAs, aperture tapering is standard practice: the leakage rate $alpha(z)$ is controlled along the aperture by varying slot width, stub length, or element coupling to achieve a desired amplitude distribution.
+- *Additively Manufactured Tapered Aperture Architecture:*
+  - The leakage rate $alpha$ of a dielectric grating LWA is a function of the grating geometry — primarily the tooth height $h_t$ and the fill factor $l/p$ (tooth width to period ratio).
+  - By *gradually increasing* the tooth height or fill factor along the propagation direction, the leakage rate increases to compensate for the decaying guided-wave power, producing a more uniform aperture illumination.
+  - The entire tapered grating structure is printed as a single dielectric piece — no geometry is repeated, but all elements are variations of the same simple rectangular-tooth motif.
+- *Research Value:*
+  - Directly improves antenna performance (higher aperture efficiency, lower sidelobes, symmetric patterns) without changing materials, feed, or adding components.
+  - Once the $alpha(h_t)$ or $alpha(l/p)$ relationship is characterized for a given dielectric material and substrate geometry, the taper profile can be synthesized analytically.
+  - Single filament, simple geometry, standard FDM — the only complexity is in the CAD (each grating tooth is slightly different).
+- *Challenges:*
+  - The $alpha(h_t)$ relationship must be extracted numerically (dispersion analysis of unit cells with varying $h_t$).
+  - When looking soly at the leakage creates near the feed the grating would need to be very shallow - potentially limited by the FDM limits, however, in practice there would be more limits at minimal height - dictated by material properties to achieved needed permittivities and such.
+
+==== All-Dielectric Ground-Plane-Free LWA Translated to Commodity FDM
+- *Underlying Concept:*
+  - François et al. (2026) demonstrated an all-dielectric leaky-wave antenna with *no metallic ground plane*, fabricated from pure $"Al"_2"O"_3$ ceramic via stereolithography at 70-90 GHz @Francois2026.
+  - The unidirectional radiation mechanism relies on a dual-grating unit cell with a constructive interference toward the top hemisphere, destructive interference toward the bottom.
+  - The photonic bandgap is designed at the second Bragg condition, then closed by the grating shift to allow leaky-wave propagation while suppressing the open stopband.
+  - Measured: $>85\\%$ of radiated power in the upper hemisphere, $>23 "dBi"$ gain, $-18 degree$ to $+22 degree$ scanning.
+- *Research Opportunity — FDM Translation:*
+  - The François design uses ceramic SLA (Lithoz CeraFab 7500) with $epsilon_r = 9.2$ $"Al"_2"O"_3$ — a high-end process with $25 mu"m"$ resolution and near-perfect surface quality.
+  - The *physics* of the dual-grating unidirectional mechanism is material-agnostic — assuming that the permittivity is high enough to support the guided mode.
+  - Zetamix Epsilon 7.5 filament ($epsilon_r = 7.5$, $tan delta approx 10^(-3)$) could potentially support this mechanism at a lower frequency (Ka-band or V-band), where the larger wavelength relaxes FDM resolution requirements.
+  - The key open question: *how does FDM surface roughness and the inherent anisotropy of printed layers affect the photonic bandgap behavior that the design relies on?*
+- *Research Value:*
+  - Demonstrates whether a sophisticated photonic-bandgap-based LWA design can survive the transition from high-end ceramic SLA to commodity FDM.
+  - Quantifies the surface roughness penalty on unidirectionality ($R$) — the François paper achieves $R = 85.6$~% measured.
+  - If successful, establishes a path to truly metal-free, single-print, high-gain LWAs at mm-wave frequencies using accessible equipment.
+- *Challenges:*
+  - The dual-grating geometry has two grating layers at different heights within the substrate — this requires printing of internal air gaps (the lower grating cavity), which is challenging in FDM (overhangs).
+  - #INFO The paper uses a Mikaelian lens integrated into the same dielectric slab for wavefront collimation — this adds another layer of printing complexity that could be deferred by using a simpler direct waveguide feed for initial validation.
 
 === Other Papers
 - @Liu2026
   - talks about some Spoof Surface Plasmon Polaritons (SSPPs) -- looks cool but I have no idea what it is
   - construct is plated with metal -- (basically a radiating waveguide), but the geometry is way too complex to do some electroplating or whatever.
+- @Araghi2024
+  - similar to @Kaji2023, however instead of unit cells with cylindrical cutout uses a sinusoidal structure - combining air and material
 
 == Reflectarray Antennas
 - *Mechanism:* A reflectarray antenna (RA) is a hybrid architecture combining the spatial feeding of a parabolic reflector with the planar aperture of a phased array @Nayeri2018, @Huang2008.
@@ -508,38 +555,67 @@ where $n_0$ is the refractive index at 100% material infill, $r$ is the radial o
 - Each unit cell applies a locally controlled phase shift $Delta phi_(m n)$ to the reflected wave to compensate for the spherical path-length difference from the feed, transforming the incident spherical wavefront into a focused plane wave in the desired direction:
   $ Delta phi (x_m, y_m) = (2 pi) / lambda_0 sqrt(x_m^2 + y_m^2 + F^2) $
   where $F$ is the focal length from the feed phase center to the array surface @Huang2008.
-- Beam scanning is achieved by adding a progressive phase gradient across the array, steering the reflected beam without physically moving the antenna.
-- #INFO #TODO read @Nayeri2018 -- the definitive textbook on reflectarray theory, design procedures, and state-of-the-art implementations covering broadband, multi-band, multi-beam, contour-beam, beam-scanning, and reconfigurable configurations.
+  - As incident angle on each cell is different - we are illuminating it with spherical waves (in best case), different incident angles need to be simulated and look up table created to correct needed permittivity.
+- #TODO read @Nayeri2018 -- the definitive textbook on reflectarray theory, design procedures, and state-of-the-art implementations covering broadband, multi-band, multi-beam, contour-beam, beam-scanning, and reconfigurable configurations.
 
 === Why Reflectarrays?
 - Compared to parabolic reflector antennas: flat/low-profile form factor, no complex curved mold tooling, easier integration onto satellite panels or building walls.
 - Compared to phased arrays: no lossy, expensive, and heavy corporate feed network with discrete phase shifters -- the spatial feeding eliminates most RF distribution losses.
+- By individually varying phase shift in each part of dish (where shifts can also be different for different polarization) polarization transformation can be achieved, or antennas XPD improved (only one polarization will be focused)
 - Key trade-off: inherently narrower bandwidth than parabolic dishes due to the resonant nature of printed unit cells and differential spatial phase delay (frequency-dependent path-length differences from the feed) @Nayeri2018.
 
 === Phase Tuning Mechanisms
 - The unit cell must deliver a reflection phase coverage of at least $360 degree$ with near-unity reflection magnitude ($|S_11| approx 1$) for high aperture efficiency.
-- *Variable Patch Size:* Changing the dimensions of a printed metallic patch shifts its resonant frequency, producing a phase-frequency ($S$-curve) response @Nayeri2018.
-- *Variable Stub/Delay Line Length:* Common in metal-only designs -- a received wave travels down a transmission line of adjustable length before being re-radiated.
-- *Variable Dielectric Geometry (3D-Printed):* Using 3D-printed dielectric elements of varying height, width, or cross-sectional shape to adjust the local reflection phase -- the dominant approach in additively manufactured reflectarrays.
-- *Variable Hole/Slot Size:* Perforating a uniform dielectric slab with holes of varying dimensions to spatially tune the effective permittivity and reflection phase.
-- *Infill Density Control:* Tuning the effective permittivity by adjusting the 3D printing infill percentage, treating the material itself as a continuous design variable.
+  - however for smaller arrays (that require to be illuminated by already fairly tight beam) a smaller phase covererage is required @Nayeri2018;
+- *Reflectarray is continous:*
+  - There are no strictly defined physical boundaries between individual unit cells.
+  - Propagation parameters of each cell are controlled via spatial variations in material density or perforation to achieve the desired phase shift.
+  - While based on effective medium theory, it remains a reflectarray by definition, utilizing a planar aperture spatially discretized into a grid of unit cells that impart a position-dependent phase shift to shape or steer an incident wave.
+  - A primary advantage of continuous structures is enhanced structural integrity and simplified manufacturing.
+  - Continuous topologies also mitigate severe edge diffraction and scattering associated with abrupt vertical boundaries in discrete arrays.
+  - @Massaccesi2023 utilizes this principle.
+- *Reflectarray is discrete:*
+  - Individual cells have strictly defined boundary conditions and typically operate as isolated resonators.
+  - Cells are often connected using a common thin base layer to ensure manufacturability, though electromagnetic coupling via this base is actively minimized.
+  - Discrete arrays offer superior spatial resolution and reduced inter-element coupling, allowing for highly independent polarization control and aggressive phase gradients.
+  - Phase tuning mechanism  @Nayeri2018
+    - Elements with phase/time-delay lines:
+      - All elements are tuned to the same design frequency, signal gets absorbed, travels on a given delay line and then is re-emitted.
+      - Not really usable for 3D printing applications.
+    - Variable geometry:
+      - Physical size of the element is changed to provide phase tuning.
+      - Changing the length of a resonant element changes the resonance frequency of the antenna, which corresponds to a change in radiated phase at a certain frequency.
+      - Whole $2 pi$ of phase change can be covered using resonator design @Zhang2017.
+        - There the change in resonant frequency and phase was achieved by having fixed dielectric constant, fixing two dimensions of the resonator and altering the final one
+        - Different approach would be altering the permittivity of the material thus tuning the resonant frequency - resonator blocks could then be of the same size.
+    -  Variable rotation angle:
+      - Restricted to CP designs.
+      - Rotating the element by given angle base will change the phase delay by some angle (not neccesarily mapping 1:1).
+      - Not sure if this could be applicable to dielectric resonators - probably yes.
+  - In conventional discrete designs, two dimensions of the cell are fixed to establish a baseline resonance, while third one is varied to tune the phase shift.
+    - @Zhang2017 utilizes this geometric tuning principle. - height and width is fixed with length being tuned
+  - If the internal permittivity of the discrete cell is directly tunable, the physical dimensions can remain strictly constant.
+  - Altering the localized permittivity directly shifts the resonant frequency of the fixed-geometry cell, thereby changing the reflection phase at the operating frequency without requiring length adjustments.
+  - For non-resonant discrete cells acting as variable delay lines, altering permittivity modifies the propagation constant, providing the required phase delay independently of physical height.
 
 === Existing Research
 
-==== 3D-Printed Dielectric Resonator Reflectarray (IET MAP 2017)
+==== 3D-Printed Dielectric Resonator Reflectarray
 - *Source:* _IET Microwaves, Antennas & Propagation_, vol. 11, no. 14, 2017 @Zhang2017.
 - *Research Context:* First demonstration of an FDM 3D-printed dielectric resonator reflectarray operating at mm-wave frequencies (30 GHz).
 - Methodology & Construction
-  - The reflectarray comprised 625 dielectric resonator elements on a $120 times 120 "mm"^2$ aperture with a total mass of only 67 g.
+  - The reflectarray comprised 625 dielectric resonator elements on a $120 times 120 thin "mm"^2$ aperture with a total mass of only 67 g.
   - Fabricated using FDM in a single-step process without any machining, metal deposition, or post-processing.
   - Each dielectric resonator element acts as a weakly coupled radiator, with its height controlling the local reflection phase.
+  - Used custom filament that raised the  permittivity to $epsilon_r = 4.4$ in order to achieve full $360 degree$ coverage
+    - base material of $epsilon_r = 2.75$ achieved only roughly $270 degree$
 - Experimental Findings
+  - Ran into trouble with achieving resonant behavior - most affordable materials exhibited too low $epsilon_r$ to achieve resonance - their own custom filament needed to be manufactured.
   - Measured gain of 28 dBi at 30 GHz when offset-fed by a Ka-band horn antenna.
   - The dielectric resonator approach inherently minimizes ohmic losses and inter-element mutual coupling compared to metallic printed patches.
   - Demonstrated that FDM resolution is sufficient for mm-wave dielectric reflectarrays despite the relatively coarse nozzle diameters.
-  - #INFO This is the pioneering paper for the entire field -- @Zhang2017.
 
-==== Dual Circularly Polarized Broadband Dielectric Reflectarray (IEEE TAP 2022) #COOL
+==== Dual Circularly Polarized Broadband Dielectric Reflectarray
 - *Source:* _IEEE Transactions on Antennas and Propagation_, vol. 70, no. 7, 2022 @Cheng2022.
 - *Research Context:* A broadband dual-circularly polarized (dual-CP) reflectarray fed by a single linearly polarized (LP) horn, realized entirely from 3D-printed dielectric materials.
 - Methodology & Construction
@@ -548,11 +624,11 @@ where $n_0$ is the refractive index at 100% material infill, $r$ is the radial o
   - By controlling the differential height of the two blocks, the reflected orthogonal components are recombined with a $+- 90 degree$ phase shift, synthesizing left-hand or right-hand circular polarization (LHCP/RHCP).
   - Full-wave simulations were validated against a fabricated prototype measured in an anechoic chamber.
 - Experimental Findings
-  - Achieved broadband dual-CP operation ($> 20\\%$ fractional bandwidth) without requiring a dual-CP feed or complex multi-layer PCB fabrication.
+  - Achieved broadband dual-CP operation ($> 20$~% fractional bandwidth) without requiring a dual-CP feed or complex multi-layer PCB fabrication.
   - The all-dielectric construction eliminates conductor losses, resulting in high radiation efficiency even at Ka-band frequencies.
   - Demonstrated that 3D printing enables polarization diversity from a single LP feed -- a capability that would require multiple PCB layers with conventional fabrication.
 
-==== 3D-Printed Wideband Reflectarray with Mechanical Beam-Steering (IJMWT 2023)
+==== 3D-Printed Wideband Reflectarray with Mechanical Beam-Steering
 - *Source:* _International Journal of Microwave and Wireless Technologies_, vol. 16, Special Issue 1, 2024 @Massaccesi2023.
 - *Research Context:* Ka-band dielectric reflectarray using a perforated dielectric unit cell for wideband performance combined with bifocal design for wide-angle mechanical beam-steering.
 - Methodology & Construction
@@ -564,8 +640,11 @@ where $n_0$ is the refractive index at 100% material infill, $r$ is the radial o
   - Less than 0.8 dB gain variation over the full $+- 40 degree$ scanning range in the vertical plane.
   - 3 dB gain bandwidth ranging from 13.5% to 28% depending on the beam pointing direction.
   - The unit cell demonstrated stable phase behavior with respect to both frequency and incident angle, enabling robust wide-angle scanning performance.
+- *Personal notes*
+  - If I had to guess the unit cell while simple will exhibit worse incidence incidence angle stability then if e.g. circular cutout would been used.
+  - Of course the incidence angle change was considered during the design process so main correction have been implemented, still maybe there would be some room for improvement.
 
-==== 3D-Printed Kirigami-Inspired Deployable Reflectarray (IEEE TAP 2022) #COOL
+==== 3D-Printed Kirigami-Inspired Deployable Reflectarray
 - *Source:* _IEEE Transactions on Antennas and Propagation_, vol. 70, no. 9, 2022 @Cui2022.
 - *Research Context:* A dielectric reflectarray with one-shot deployability and wide-angle beam-scanning enabled by a kirigami-inspired (cut-and-fold) element structure combined with bifocal phase design.
 - Methodology & Construction
@@ -577,49 +656,35 @@ where $n_0$ is the refractive index at 100% material infill, $r$ is the radial o
   - The combination of deployability and beam-scanning is uniquely enabled by 3D printing -- conventional rigid PCBs or machined metal cannot achieve this form factor.
 - *Personal notes*
   - Deployable structures are particularly relevant for small satellites (CubeSats) where stowed volume is severely constrained but a large-aperture high-gain antenna is needed on orbit.
+  - Definitely too complex for the thesis given the time constrains
 
-==== Wideband 3D-Printed Polarization-Reconfigurable Reflectarray (IEEE AWPL 2020)
-- *Source:* _IEEE Antennas and Wireless Propagation Letters_, vol. 19, no. 10, 2020 @Mei2020.
-- *Research Context:* A 3D-printed reflectarray with mechanically reconfigurable polarization for 5G mm-wave applications.
-- Methodology & Construction
-  - The unit cell uses an air-perforated dielectric stub that simultaneously provides polarization rotation and phase shifting.
-  - Polarization reconfiguration is achieved mechanically by rotating the reflectarray elements relative to the feed orientation.
-  - The entire structure is fabricated as a single dielectric print.
-- Experimental Findings
-  - Wideband impedance matching across the 5G mm-wave band (26.5-29.5 GHz).
-  - Demonstrated switching between linear and circular polarization states with good axial ratio performance.
-
-==== Bi-Material Bragg-Based Reflectarray (Sensors 2024)
-- *Source:* _Sensors_, vol. 24, no. 20, 2024 @BiMaterialBragg2024.
+==== Bi-Material Bragg-Based Reflectarray
+- *Source:* _Sensors_, vol. 24, no. 20, 2024 @Bragg2024.
 - *Research Context:* A fully dielectric bi-material reflectarray exploiting a 1D Bragg reflector unit cell to create bandgap (frequency-selective reflection) characteristics for multi-band applications.
 - Methodology & Construction
   - The unit cell is based on a one-dimensional Bragg reflector -- alternating layers of two dielectric materials with different permittivities.
-  - Bi-material 3D printing (dual-extruder FDM or material jetting) deposits the alternating dielectric layers.
+  - Bi-material 3D printing deposits the alternating dielectric layers.
   - The bandgap behavior creates frequency-selective reflectarray operation, reflecting strongly in designed passbands while being transparent elsewhere.
 - Experimental Findings
   - Measured gain of 27.22 dBi at 27 GHz with aperture efficiency of 35.05%.
   - Verified transparency outside the design band, demonstrating the multi-band potential of the Bragg approach.
 
-==== Ka-Band Reflectarray with Infill-Controlled Permittivity (Sensors 2025)
+==== Ka-Band Reflectarray with Cylindrical Dielectric Unit Cells
 - *Source:* _Sensors_, vol. 25, no. 17, 2025 @Beccaria2025.
-- *Research Context:* A fully dielectric Ka-band reflectarray using cylindrical unit cells printed from Zetamix ceramic filament, where the infill density is tuned during fabrication to control effective permittivity -- treating infill as an additional design degree of freedom.
+- *Research Context:* A fully dielectric Ka-band reflectarray using cylindrical unit cells printed from Zetamix ceramic filament, where the infill density is tuned during fabrication to control effective permittivity -- treating infill as an additional design degree of freedom -- however, not in the manufacturing phase.
 - Methodology & Construction
+  - Uses array of cylindrical dielectric resonators.
   - Zetamix $epsilon_r$ 7.5 ceramic-loaded filament ($"TiO"_2$-based) was used with FDM printing.
-  - At 35% infill, the effective permittivity drops to approximately $epsilon_r approx 2$, enabling a wide continuous tuning range from a single filament material.
-  - Cylindrical unit cells of fixed external dimensions but variable internal infill produce the required $360 degree$ reflection phase range.
+  - Different unit cells designs were analyzed
+    - Cylindrical unit cells of fixed external dimensions but variable internal infill produce the required $360 degree$ reflection phase range.
+    - While testing effect of height of the unit cell, while keeping permittivity fixed, it was found that the base permittivity of the material needed to be fairly high to achieve the results -- permittivity of $epsilon_r = 5$ was unable to cover range of $360 degree$
+    - Final design selected a fixed height and fixed permittivity (controlled with infill)
 - Experimental Findings
-  - Validated that infill density provides a practical, repeatable method for spatial permittivity control without requiring multi-material printing or geometric height variations.
-  - The approach decouples the unit cell's physical geometry from its electromagnetic phase response -- the cell dimensions can remain uniform while only the internal fill changes.
-
-==== Metal-Only 3D-Printed Reflectarrays
-- *Mechanism:* Using Selective Laser Melting (SLM) powder-bed fusion, metallic reflectarrays are printed with waveguide-type unit cells where the phase shift is controlled by the depth of a short-circuited waveguide section.
-- *Advantages:* No dielectric materials means no dielectric loss, higher power handling, and suitability for space (no outgassing, radiation-hard).
-- *Challenges:* SLM surface roughness at mm-wave frequencies introduces additional ohmic loss; post-processing (polishing, coating) is often required.
-- *Key works:* Metallic 3D-printed reflectarrays with coaxial unit cells achieving full $360 degree$ phase range have been demonstrated for mm-wave applications @Kaddour2024.
+  - Validated that infill density provides a practical, repeatable method for spatial permittivity control.
 
 ==== Other Papers
 - @Whittaker2023 surveys 3D printing materials and techniques for antennas and metamaterials, highlighting dielectric resonator reflectarrays as a promising application area.
-- 3D-printed dielectric reflectarrays at 220 GHz demonstrated wideband performance in the sub-THz regime -- shows that printing resolution is viable even at these high frequencies @Wu2018.
+- @Wu2018 - 3D-printed dielectric reflectarrays at 220 GHz demonstrated wideband performance in the sub-THz regime -- shows that printing resolution is viable even at these high frequencies .
 - Convex conformal reflectarrays with enhanced efficiency and reduced sidelobe levels using 3D-printed dielectric elements on a curved metallic ground @Beccaria2021.
 
 === Potential Research Directions for 3D-Printed Reflectarrays
@@ -638,47 +703,38 @@ where $n_0$ is the refractive index at 100% material infill, $r$ is the radial o
   - Enables completely flush-mounted reflectarrays for conformal aerospace and vehicular applications.
   - Eliminates geometric shadowing effects at oblique feed angles, potentially improving wide-angle scanning performance.
   - The smooth internal grading (vs. discrete step transitions) may reduce unwanted scattering, improving gain and sidelobe performance.
-  - Leverages the emerging capability demonstrated by @Beccaria2025 using Zetamix ceramic filaments -- extends it from a proof-of-concept to a rigorous design methodology.
+  - Somewhat close to what is in @Massaccesi2023 - there the infill is always 100 % but effect is the same - height stays the same, density is varied.
 - *Challenges:*
   - Requires precise calibration of the infill-to-permittivity mapping function across the full 0-100% density range, including anisotropy effects from infill pattern orientation relative to the incident E-field.
   - Slicer software must be augmented or bypassed to assign unique infill percentages to each unit cell -- programmatic G-code generation is required.
   - At very low infill densities, mechanical integrity becomes a concern for larger apertures.
+- *Problems with FDM/SLA Technology*
+  - Cell design such as used in @Massaccesi2023 is more simpler, easier to characterize and doesn't really have any disadvantages (especially as the unit cells are rather small).
+  - There is a problem with the unit cell size -- most papers require larger arrays with smaller sizes of cells to achieve good results.
+  - Neither 3D-printing technology is that adapted to printing infill in small spaces, print quality consistency (or even actually infill value) cannot be guaranteed
+    - It's common for both SLA/FDM to print such small features with 100 % infill which guarantees some quality.
+    - Only infill pattern which is worth considering is concentric - however, there would still be abrupt stops (in case of square unit cell design where the infill would also have square shape)
+  - While slicers support varying infill through the structure using information supplied in .3mf files the capabilities are limited.
+    - Even in small array of 20 x 20 the number of cells is 400.
+    - It's hard to say if the slicers would be able to handle this. The functionality is more designed for low tens of individual infill zones.
+- It would generally be beneficial to connect regions of same infill level together - thus moving from reflectarray to more continous structure such as kinoform, phase fresnel reflector.
 
-==== Multi-Material Fully 3D-Printed Reflectarrays (Dielectric + Conductive)
-- *Underlying Electromagnetic Problem:*
-  - Most 3D-printed reflectarrays today are *either* fully dielectric (using geometry for phase control, with a separate metallic ground plane) *or* metal-only (via SLM).
-  - Fully dielectric designs require a metallic ground plane that is typically a separate component (copper sheet, metal plate) -- breaking the "single monolithic print" promise.
-  - The few attempts at fully 3D-printed conductive structures using filaments like Electrifi ($sigma approx 10^4 \"S/m\"$) suffer from dramatically reduced radiation efficiency due to ohmic losses in the low-conductivity polymer @Yurduseven2019, @Xie2017.
-- *Additively Manufactured Multi-Material Reflectarray Architecture:*
-  - A dual-extruder FDM system prints the dielectric substrate/unit cells from low-loss PLA, ABS, or ceramic-filled filament while simultaneously printing the ground plane and optional conductive patches from Electrifi or a copper-based composite filament.
-  - The entire reflectarray -- dielectric aperture, conductive ground plane, and mounting struts -- is fabricated in a single uninterrupted print cycle.
-  - Alternatively, the ground plane and conductive features could be printed first, then electroplated for improved conductivity -- this hybrid approach combines the geometric freedom of 3D printing with the RF performance of plated copper.
+==== Reflectarrays with Form Birefringence
+- *Underlying Electromagnetic Problems*
+  - Utilizing clever unit cell design (cells that exhibit anisotropy along their principal axis) a polarization transformation (using similar mechanism as transmitarrays) or XPD improvement can be achieved.
+  - Example in @Cheng2022 - cell geometry is different in $x$ and $y$ axis. Thus exhibits a form birefringence affective EM wave differently in each axis.
+  - Or similarly while most feeders will have some cross-polar reception the array can be designed in such a way that only the desired polarization will be focused - thus improving XPD.
+  - Typically such designs relied on blocks of differing height
+- *Additively Manufactured Polarization Reflectarray Architecture:*
+  - Instead of using blocks of different heights a uniform height array would be printed where different handling of each polarization would be achieved with unit cell design.
+  - Basic cell design of @Massaccesi2023 could be modified to instead use a eliptical cutout - which would give different permittivity in both axis.
 - *Research Value:*
-  - True monolithic fabrication eliminates alignment errors between dielectric elements and ground plane, improving phase accuracy.
-  - Dramatically reduces assembly labor and cost, making reflectarrays viable for low-cost consumer mm-wave applications (5G/6G CPE, automotive radar).
-  - Quantifying the conductivity-performance trade-off would establish design guidelines for when conductive filament alone is sufficient vs. when electroplating is necessary.
+  - Utilizing design based on @Massaccesi2023 would lead to more mechanically robust system then other solutions.
+  - I don't think such design has been realized #TODO verify more thoroughly, haven't been able to find anything at a quick glance.
 - *Challenges:*
-  - Differential thermal expansion and incompatible printing temperatures between conductive (Electrifi: $130-160 degree\"C\"$) and structural (PLA: $190-220 degree\"C\"$) filaments cause inter-layer delamination.
-  - Nozzle cross-contamination between conductive and dielectric filaments creates microscopic conductive stringers that can short adjacent unit cells.
-  - The low conductivity of printable filaments fundamentally limits efficiency -- a rigorous comparison study is needed to identify frequency bands and applications where this is acceptable.
+  - Information on anisotropy of the material would be required complicating some measuring techniques -- would basically necessitate a measuring while having the material squeezed between two waveguides.
+  - Properties of polarization would be entangled - some computer optimization would be required to achieve the correct properties.
 
-==== Sub-THz 3D-Printed Reflectarrays for 6G and Beyond
-- *Underlying Problem:*
-  - Most 3D-printed reflectarrays operate in the Ka-band (26-40 GHz) or V-band (40-75 GHz).
-  - Above 100 GHz (sub-THz, D-band at 110-170 GHz, and beyond), microstrip feed networks become prohibitively lossy and PCB fabrication tolerances become extremely tight.
-  - Reflectarrays are inherently attractive at sub-THz because their spatial feeding eliminates the lossy feed network entirely -- the only losses are in the unit cells themselves.
-- *Additively Manufactured Sub-THz Reflectarray Architecture:*
-  - High-resolution printing technologies (micro-stereolithography with $<= 25 mu\"m\"$ voxel resolution, two-photon polymerization) can fabricate unit cells with the sub-100 μm feature sizes required for sub-THz operation.
-  - The all-dielectric unit cell approach avoids conductor losses entirely, which become increasingly severe as frequency increases (skin depth in copper at 140 GHz is only $approx 0.18 mu\"m\"$).
-  - A $220 "GHz"$ dielectric reflectarray has already been demonstrated using 3D printing @Wu2018, but systematic optimization across the full D-band and H-band remains unexplored.
-- *Research Value:*
-  - 6G communication systems target D-band (110-170 GHz) for access links and H-band (220-325 GHz) for backhaul -- high-gain antennas at these frequencies are a critical enabling technology.
-  - All-dielectric reflectarrays eliminate the extremely high conductor losses that plague PCB-based designs at these frequencies.
-  - Would establish the practical upper frequency limit of 3D-printed dielectric reflectarrays given current printing resolution constraints and material characterization at sub-THz frequencies.
-- *Challenges:*
-  - Dielectric material characterization (both permittivity and loss tangent) is poorly documented for 3D printing filaments above 100 GHz -- measurement campaigns using free-space or resonator techniques are prerequisite.
-  - Surface roughness of printed dielectrics ($R_q$ typically 10-50 μm for FDM, 1-5 μm for SLA) can cause non-negligible scattering losses at sub-THz frequencies.
-  - Printing resolution demands may push beyond the capabilities of standard FDM and even desktop SLA -- specialized high-resolution equipment may be necessary.
 
 ==== Conformal 3D-Printed Reflectarrays on Arbitrary Curved Surfaces
 - *Underlying Electromagnetic Problem:*
@@ -694,100 +750,40 @@ where $n_0$ is the refractive index at 100% material infill, $r$ is the radial o
   - The conformal approach combined with the flush GRIN concept (above) could produce truly aerodynamically neutral high-gain apertures.
   - Pushes programmatic CAD and computational electromagnetics co-design to new levels -- each element on a doubly curved surface is unique, requiring automated design workflows.
 - *Challenges:*
-  - The design space explodes combinatorially -- each of hundreds or thousands of elements may require individual simulation. Surrogate modeling and machine-learning-assisted optimization become necessary.
+  - The design space explodes - range of incidence angles is larger and also local surface normal rotates, which changes the relationship between feed coordinates and element coordinates
+    - Unit cell needs to have high angular stability (Which is already desired in planar configuration) - still, as with normal design, simulations/measurements need to be run with different incident angles in order to accurately create a look up table - and the change of surface normal should also be considered.
+    - Local incidence condition changes for each element (The change is there even for planar configuration but less pronounced) - combined with inherent anisotropy it might be too complex.
+    - Surrogate modeling and surrogate based optimization will probably become necessary.
+    - However there are some cell designs that exhibit very good angular stability.
   - Printing large curved structures with sub-millimeter accuracy requires advanced toolpath generation beyond standard planar slicers.
   - Feed placement and illumination taper optimization become significantly more complex on curved surfaces compared to planar apertures.
 
-==== Reconfigurable 3D-Printed Reflectarrays with Embedded Functional Materials
-- *Underlying Electromagnetic Problem:*
-  - Reconfigurable reflectarrays using PIN diodes, varactors, or liquid crystals are actively researched for dynamic beam-steering without mechanical feed movement.
-  - However, these designs universally rely on conventional multilayer PCB fabrication -- integrating active components into a 3D-printed structure is essentially unexplored.
-- *Additively Manufactured Reconfigurable Reflectarray Architecture:*
-  - Liquid crystal (LC) channels could be 3D-printed as hollow cavities within a dielectric reflectarray, then filled with LC material post-printing -- the LC's permittivity changes under applied bias voltage, tuning the reflection phase.
-  - Mechanically reconfigurable elements (rotating dielectric blocks, sliding dielectric inserts) could be 3D-printed as monolithic compliant mechanisms, avoiding assembly of discrete moving parts.
-  - Microfluidic channels for liquid-metal injection (e.g., Galinstan) could be printed into the unit cells, enabling continuous phase tuning by changing the effective geometry of a conductive inclusion.
-- *Research Value:*
-  - Combines the geometric freedom of 3D printing with the functionality of reconfigurable materials.
-  - LC-based tuning is particularly promising because 3D printing can create the sealed cavity, alignment layers, and bias electrode channels in a single structure.
-- *Challenges:*
-  - Liquid crystal filling of 3D-printed cavities requires precise sealing and uniform alignment layer deposition -- processes well-established for flat glass cells but not for 3D-printed polymer cavities.
-  - The bias voltage distribution network (transparent electrodes, wiring) must be integrated without blocking the RF aperture.
 
-==== Co-Designed Feed-and-Reflectarray Monolithic Systems
+==== Reflectarray Printed With Integrated Dielectric Rod Feed Antenna
+- A dielectric rod antenna is a traveling-wave antenna
+  - Tapered dielectric cylinder (or rectangular rod) fed by a metallic waveguide.
+  - The guided wave travels along the rod and gradually leaks into free space, producing an end-fire radiation pattern.
+  - Mounted at the center or edge of a reflectarray, the rod points toward the array surface and illuminates it.
 - *Underlying Problem:*
   - Nearly all published 3D-printed reflectarrays use a separate, commercially manufactured horn antenna as the feed.
   - This introduces alignment uncertainty during assembly, adds a separate component cost, and prevents full system miniaturization.
   - The feed-to-reflectarray distance (focal length) and alignment are critical parameters -- misalignment by even a fraction of a wavelength degrades gain and increases sidelobes.
-- *Additively Manufactured Co-Designed Architecture:*
-  - The feed antenna (horn, dielectric rod, or printed waveguide) and the reflectarray are fabricated as a single monolithic structure with integrated mechanical registration features.
-  - The focal length is determined by the printed geometry, eliminating assembly alignment errors.
-  - A dielectric rod or lens-integrated feed could be printed seamlessly into the reflectarray substrate, creating a fully integrated aperture.
+- *Additively Manufactured Architecture:*
+  - The rod can be printed as a vertical protrusion from the array surface -- there should be minimal overhang, the rod's taper should be fine.
+  - The rod taper and cross-section can be optimized for the desired illumination pattern (e.g., to achieve a specific edge taper on the reflectarray).
+  - The ground plane underneath the rod will be a in a plane - so either can be easily electroplated, or just attached to the top
+  - Way to mount waveguide to the rod would need to be included in the design.
+    - Or here the geometry shouldn't be that complicated so it could be partially also realized using electroplating.
 - *Research Value:*
-  - Transforms the reflectarray from a "component" into a "system-in-a-print" -- attractive for mass-produced mm-wave terminals where assembly labor dominates cost.
+  - It's a novel approach.
   - Eliminates alignment as a variable in experimental validation, enabling more accurate comparison between simulated and measured performance.
 - *Challenges:*
-  - Co-printing the feed and reflectarray requires the feed to be designed from the same limited set of printable materials, constraining its performance.
   - The focal length is locked at print time -- no post-fabrication adjustment is possible, so simulation accuracy must be extremely high.
-
-=== Research Direction Assessment Matrix
-- #INFO For the thesis, the key criteria are: (1) feasibility with available equipment, (2) novelty gap in literature, (3) potential for publishable results, (4) alignment with 3D printing's unique advantages.
-
-#figure(
-  table(
-    columns: (auto, auto, auto, auto, auto),
-    align: left,
-    stroke: 0.5pt,
-    table.header([*Direction*], [*Feasibility*], [*Novelty*], [*Publishability*], [*3DP Uniqueness*]),
-    [GRIN Reflectarrays via Infill],
-    [Medium -- needs Zetamix, slicer automation],
-    [High -- @Beccaria2025 is the only direct precedent],
-    [High -- combines materials + EM design],
-    [Very High -- impossible without 3DP],
-
-    [Multi-Material (Dielectric+Conductive)],
-    [Medium -- needs dual-extruder, material compatibility],
-    [Medium-High -- only @Yurduseven2019 attempts this seriously],
-    [Medium -- efficiency may be too low at mm-wave],
-    [High -- monolithic print is uniquely 3DP],
-
-    [Sub-THz Reflectarrays],
-    [Low-Medium -- needs $> 100 "GHz"$ measurement capability],
-    [High -- very few works above 100 GHz],
-    [Very High -- 6G relevance],
-    [Medium -- SLA resolution is key, not FDM],
-
-    [Conformal Curved Reflectarrays],
-    [Medium -- needs programmatic CAD, large curved printer bed],
-    [High -- mostly unexplored],
-    [High -- aerospace applications],
-    [Very High -- conformal printing is unique to 3DP],
-
-    [Reconfigurable Embedded LC/MEMS],
-    [Low -- requires LC filling infrastructure],
-    [Very High -- essentially unexplored],
-    [Very High -- if it works],
-    [Medium -- could be done with PCBs too],
-
-    [Co-Designed Feed+Reflectarray],
-    [High -- straightforward fabrication],
-    [Medium -- incremental rather than breakthrough],
-    [Medium],
-    [Medium -- could be done with other methods],
-  ),
-  caption: [Assessment matrix for 3D-printed reflectarray research directions.],
-  kind: "table",
-  supplement: [Table],
-)
-
-
 
 == Other Papers
 - @Oni2026 - just overview of current state of Metamaterial based antennas, not much related to 3D printing.
 - @Dong2012 - overview of metamaterial antennas, has a section on antennas with metasurface.
 - @Whittaker2023 - applications of 3D printing in antennas and metaantennas.
-  - #INFO mentions reflectarray antennas with dielectric resonators realized using 3D printing - looks quite interesting.
-- @Cheng2022 - reflectarray antenna
-- @Shuping2024 - CRLH antenna, realized using 3D printing and electoplating
 
 #pagebreak()
 = Perfectly Matched Layer Absorbes and Radomes
@@ -801,7 +797,7 @@ where $n_0$ is the refractive index at 100% material infill, $r$ is the radial o
   - Additive manufacturing enables complex 3D profiles like standing gears and vertical pyramids to secure wide incident angle performance.
 - The lower electrical conductivity of carbon- or graphite-doped filaments provides the exact ohmic loss mechanism needed for wave dissipation.
 
-=== Stereo Perfect Metamaterial Absorber (Frontiers in Physics 2020)
+=== Stereo Perfect Metamaterial Absorber
 - *Source:* _Frontiers in Physics_, vol. 8, 2020 @Deng2020.
 - *Research Context:* Achievement of wide-incident-angle stability via stereo three-dimensional resonant meta-atoms.
 - Methodology & Construction
@@ -811,7 +807,7 @@ where $n_0$ is the refractive index at 100% material infill, $r$ is the radial o
   - Maintained near-unity absorption efficiency at steep oblique angles of incidence up to 60 degrees.
   - Demonstrated robust polarization insensitivity across the targeted radar frequency window.
 
-=== Micro and Nano Scale 3D Printing Review (Virtual and Physical Prototyping 2024)
+=== Micro and Nano Scale 3D Printing Review
 - #INFO quite nice overview
 - *Source:* _Virtual and Physical Prototyping_, vol. 19, no. 1, 2024 @Peng2024.
 - *Research Context:* Structural tracking of manufacturing mechanisms and functional scaling for electromagnetic absorbers.
@@ -820,6 +816,239 @@ where $n_0$ is the refractive index at 100% material infill, $r$ is the radial o
 - Experimental Findings
   - Outlined critical material formulation limits for carbon nanotube and graphene-loaded lossy polymer filaments.
   - Confirmed that multi-material gradient structures successfully optimize the impedance interface with free space.
+
+
+#pagebreak()
+= 3D-Printed All-Dielectric Beam-Forming and Polarization-Transforming Surfaces
+- Beyond conventional reflectarrays, 3D printing enables a family of spatially-fed planar surfaces that function in transmission mode — manipulating both the phase and the polarization of an incident wavefront without relying on metallic patches, ground planes, or lossy feed networks.
+- These structures fall broadly into two functional categories:
+  - Polarization-Transforming Surfaces: Convert linear polarization to circular (LP-to-CP), rotate polarization angle, or perform asymmetric polarization-dependent filtering.
+  - Beam-Forming Surfaces / Transmitarrays (TAs): Collimate an incident spherical wavefront into a focused plane wave in a desired direction — the transmission-mode counterpart of a reflectarray.
+- Utilizing pure dielectric constructions eliminates conductor losses — the dominant loss mechanism at mm-wave and sub-THz frequencies — and reduces fabrication to a single-material 3D print.
+- Unlike reflectarrays, transmitarrays are non-blocking — the feed is behind the aperture, so there is no feed blockage shadow in the radiation pattern.
+
+== Physical Mechanisms for Dielectric-Based Polarization Control
+
+=== Birefringent Quarter-Wave Plate (Form Birefringence)
+- *Mechanism:*
+  - Intrinsically isotropic material is structured with deep-subwavelength features (e.g., periodic cutouts, asymmetric holes.
+  - Or a subwavelength gratings from two or more isotropic materials however final structure is anisotropic.
+  - Structural variations are significantly smaller than the operating wavelength, the incident wave does not resolve or scatter off individual physical boundaries.
+  - The effective refractive index differs for electric fields polarized parallel ($n_parallel$) versus perpendicular ($n_perp$) to the strip orientation.
+  - The phase shift is accumulated through propagation delay.
+    - As the orthogonal vector components of a wave travel through the depth ($d$) of the structure, they travel at different phase velocities.
+    - The differential phase shift is linearly proportional to the depth and the difference in effective indices: .
+- Design Rule for LP-to-CP Conversion: When a linearly polarized wave is incident at $45 degree$ to the strip axis, the parallel and perpendicular components acquire a differential phase delay:
+  $ Delta phi = k_0 d |sqrt(epsilon_("eff",x)) - sqrt(epsilon_("eff",y))| $
+  $ Delta phi = (2 pi f d) / c_0 (n_parallel - n_perp) $
+  Setting $Delta phi = pi/2$ (quarter-wave retardation) and maintaining equal transmitted amplitudes produces a circularly polarized output wave @Isakov2018.
+
+=== Anisotropic Dielectric Slab Arrays
+- *Mechanism:*
+  - Discrete, physically isolated elements (such as rectangular pillars, elongated slabs, or cross-shaped dielectric resonator antennas) with dimensions on the order of a half-wavelength within the medium
+  - Elements act as isolated 3D electromagnetic cavities supporting localized resonant modes (e.g., Mie resonances). The anisotropy is established by the differing macroscopic physical dimensions of the discrete element itself.
+  - The phase shift imparted to a specific polarization is dictated by resonance detuning.
+    - An incident wave polarized along the $x$-axis excites a resonant mode governed by $L_x$, while a $y$-polarized wave excites a mode governed by $L_y$.
+    - The reflection phase for each polarization depends on how far the fixed operating frequency is detuned from that specific axis's natural resonant frequency.
+- *Key Distinction from QWP:*
+  - The slabs are arranged at the macroscale (not subwavelength cells), with each slab acting as a bulk anisotropic phase element.
+  - This can be arranged annularly for omnidirectional polarization conversion @Ma2022.
+
+=== Chiral Metasurfaces (Three-Dimensional Helices)
+- *Mechanism:*
+  - True 3D chiral elements — such as dielectric helices or elliptic resonators — exhibit intrinsic chirality: they respond differently to left-handed (LHCP) and right-handed (RHCP) circularly polarized waves.
+  - Producing circular dichroism (CD) and asymmetric transmission.
+- *3D Printing Advantage:*
+  - Chiral structures require truly three-dimensional geometry (not just patterned films).
+  - FDM or SLA printing of dielectric helices or elliptic cylinders is straightforward, while conventional fabrication of 3D chiral elements is extremely difficult.
+
+== Key Papers: Polarization-Transforming Surfaces
+
+=== 3D-Printed $lambda$/4 Phase Plate
+- *Source:* _Optics Express_, vol. 26, no. 22, 2018 @Isakov2018.
+- *Research Context:* Dual-head FDM 3D-printed quarter-wave plate (QWP) operating at 12-18 GHz for broadband LP-to-CP conversion.
+- Methodology & Construction
+  - Alternating strips of two commercial filaments with different permittivities were printed to create an artificially anisotropic birefringent layer.
+  - The strip width and layer thickness were designed to produce precisely $90 degree$ differential phase at the center frequency of 15 GHz.
+  - No metal, no post-processing — the entire QWP is a single dielectric print.
+- Experimental Findings
+  - Broadband LP-to-CP conversion across 12-18 GHz ($approx 40\\%$ fractional bandwidth) with measured axial ratio well below 3 dB.
+  - Demonstrated the viability of FDM for precision microwave polarization optics at consumer-printer resolution.
+- *Personal notes*
+  - Elementary geometry — strips of two materials — yet achieves broadband performance. This is a very clean, well-executed demonstration of the concept.
+  - The limiting factor is the availability of two filaments with sufficiently different permittivities and compatible printing temperatures.
+
+=== 3D-Printed Planar Dielectric LP-to-CP Coding Polarizer and Beam-Shaping Lens #COOL
+- *Source:* _IEEE Transactions on Antennas and Propagation_, vol. 68, no. 6, 2020 @Zhu2020.
+- *Research Context:* Simultaneous linear-to-circular polarization conversion and beam collimation/shaping using a single planar 3D-printed dielectric coding metasurface.
+- Methodology & Construction
+  - The unit cell is a dielectric quarter-wave plate (QWP) element whose in-plane dimensions (length and width) control the local transmission phase while the differential phase delay ($pi/2$) between orthogonal axes converts LP to CP.
+    - Doesn't act as a dielectric resonator.
+  - Unlike a conventional polarizer + lens cascade, the QWP cells themselves act as the spatial phase shifters — polarization conversion and wavefront focusing happen in the same layer.
+  - Two lens types were demonstrated:
+    - A basic beam-focusing lens
+    - A Wollaston-prism-like and Rochon-prism-like planar CP beam-shaping lenses that split different polarization into two beams which can be independently controlled
+- Experimental Findings
+  - Successfully demonstrated simultaneous LP-to-CP conversion and beam focusing/collimation using only dielectric 3D-printed elements.
+  - The coding polarizer approach enables spatially varying polarization states — different aperture regions can produce different CP handedness.
+  - Aperture efficiency could potentially exceed that of cascaded polarizer + lens systems due to elimination of inter-component reflections.
+
+=== 3D-Printed Annular Dielectric Polarizer for Omnidirectional Antennas
+- *Source:* _IEEE Transactions on Antennas and Propagation_, vol. 70, no. 10, 2022 @Ma2022.
+- *Research Context:* A 3D-printed dielectric polarizer for omnidirectional and multibeam antennas, using annually arranged dielectric slabs each rotated $45 degree$ relative to the azimuth plane.
+- Methodology & Construction
+  - The polarizer consists of multiple dielectric slabs arranged in a circular (annular) configuration around a central feed.
+  - Each slab is rotated $45 degree$ to the azimuth plane, creating the differential phase needed to convert the azimuthally propagating LP wave to CP.
+  - Fabricated entirely from dielectric material using FDM 3D printing.
+- Experimental Findings
+  - Demonstrated LP-to-CP conversion in the azimuth plane, enabling omnidirectional CP radiation — useful for terrestrial and satellite communications.
+  - Extended the concept to multibeam configurations with independent CP handedness control per beam.
+
+
+== Key Papers: Beam-Forming Transmitarrays
+
+
+
+=== 3D-Printable Dielectric Transmitarray with Enhanced Bandwidth
+- *Source:* _IEEE Access_, vol. 6, 2018 @Massaccesi2018TA.
+- *Research Context:* The same Politecnico di Torino group's pioneering work on a three-layer perforated dielectric unit cell for wideband transmitarray antennas at mm-wave frequencies.
+- Methodology & Construction
+  - The unit cell is a three-layer dielectric structure: the central layer has a square hole (variable side length controls transmission phase), while the outer layers have truncated pyramid holes (impedance matching for bandwidth enhancement).
+  - This three-layer approach yields much wider bandwidth than a single-layer perforated dielectric because the tapered outer layers act as impedance transformers, reducing reflection at the dielectric-air interfaces.
+  - Fabricated using polymer-jetting 3D printing for high resolution.
+- Experimental Findings
+  - The three-layer TA achieved significantly wider bandwidth compared to single-layer designs.
+  - Demonstrated a $36 times 36$ element transmitarray at Ka-band with high gain and good aperture efficiency.
+  - The tapered matching concept is general: it can be applied to any dielectric-phase-shifting unit cell to improve bandwidth.
+
+=== Beam-Scanning 3D-Printed Perforated Dielectric Transmitarray
+- *Source:* _Electronics_, vol. 8, no. 4, 2019 @Massaccesi2019TA.
+- *Research Context:* Demonstration of beam-scanning capability for a Ka-band 3D-printed dielectric transmitarray using the three-layer perforated unit cell (same as in previous article @Massaccesi2018TA).
+- Methodology & Construction
+  - Mechanical beam scanning was implemented by moving the feed laterally in the focal plane — each feed position illuminates a different portion of the aperture with a different effective progressive phase gradient.
+  - The wide-angle impedance matching of the three-layer unit cell enabled scanning beyond $+- 30 degree$ without significant gain degradation.
+- Experimental Findings
+  - Validated wide-angle beam scanning with stable gain and pattern quality across the Ka-band.
+  - Demonstrated that the perforated dielectric transmitarray rivals the scanning performance of much more complex and expensive phased arrays, but with zero active components.
+
+=== 3D-Printed High-Gain Beam-Switching Dielectric Transmitarray
+- *Source:* _Microwave and Optical Technology Letters_, 2024 @Kumar2024.
+- *Research Context:* A high-gain linearly polarized dielectric transmitarray with 1336 unit cells of 16 different phase states ($22.5 degree$ quantization), fed by an integrated lens antenna (ILA).
+- Methodology & Construction
+  - 16 discrete unit cell types provide $22.5 degree$ phase quantization (4-bit) — a practical trade-off between continuous phase control and fabrication manageability.
+  - The integrated lens antenna feed replaces the conventional horn, enabling a more compact overall system.
+  - All-dielectric construction with 3D printing.
+- Experimental Findings
+  - Demonstrated high gain beam-switching suitable for mm-wave point-to-point links and radar.
+  - The ILA feed + transmitarray configuration is more compact than an equivalent horn-fed design while maintaining competitive aperture efficiency.
+
+== Beam-Forming Lenses
+- Use blocks of continous properties as opposed to grid based cell of transmit arrays.
+- Harder to design/optimize in case of ofset feed, or special beam steering requirements.
+  - In case of inline feed relatively simple and when just basic collimating properties are requires just lead to centric rings.
+
+
+=== Luneburg Lenses
+- *Mechanism:* Spherical structure with a smoothly decreasing refractive index as radial distance from the geometric center increases.
+- *Design Rule:* Theoretically follows the profile:
+$ n(r)^2 = epsilon_r(r) = 2 - (r/R)^2 $
+where $n$ represents the local refraction index, $epsilon_r$ is the relative permittivity, and $R$ is the total outer radius of the lens @Kristoffersen2017.
+- Standard traditional manufacturing methods make the generation of smooth continuous 3D index gradients highly impractical.
+- In additive implementations, the gradient is generated by varying the dimensions of a subwavelength unit cell cube positioned systematically at distinct grid intersection points @Yue2022.
+
+==== Design of a metamaterial Luneburg lens antenna
+- *Source:* _2022 2nd International Conference on Computer Science, Electronic Information Engineering and Intelligent Control Technology (CEI)_ @Yue2022
+- *Research Context:* Demonstration of a 50 mm in radius Luneburg lens created using SLA printing, achieved an improvement in gain of 7.41 dB.
+- Methodology & Construction
+  - Unit Cell Design: Each unit consists of a variable-sized dielectric cube in the center with three connecting rods (0.8 mm fixed width) parallel to the X, Y, and Z axes.
+  - A unit period of 5 mm was chosen to be significantly smaller than the center wavelength of the X-band at 10 GHz.
+  - The lens was fed from a standard WR-90 waveguide open port without an external antenna element.
+  - Parameter Retrieval: Used the S-parameter retrieval method proposed by D. R. Smith (2005) to extract equivalent permittivity.
+  - Manufacturing: Produced a 50 mm radius lens using Stereo Lithography Apparatus (SLA) with C-UV 9400E photosensitive resin ($epsilon_r approx 3.2-4.0$).
+- Experimental Findings
+  - The antenna gain at 10 GHz was 14.98 dB, a 7.41 dB increase compared to a single waveguide feed @Yue2022.
+  - No problems regarding simulations or manufacturing using SLA were mentioned in this @Yue2022, however @Kristoffersen2017 needed to use SLS
+  - The lens rotated 45° with basically unchanged pattern and gain, proving good spatial dynamic scanning ability.
+    - Interesting that the losses don't shift much, one would have thought there would be an larger difference.
+
+
+=== GRIN (Gradient Index) Lenses
+- *Mechanism:* Planar structures exhibiting radial permittivity gradients typically expressed as:
+$ n(r)^2 = epsilon_r(r) = (n_0 - (sqrt(L^2+r^2)-L)/t)^2 $
+where $n_0$ is the refractive index at 100% material infill, $r$ is the radial offset from the axis, $L$ is the focal length, and $t$ represents the physical thickness of the lens disk @Kristoffersen2017.
+- These geometries are sometimes classified alongside or compared directly to flat Fresnel zone plate configurations due to their planar layout.
+- The structural simplicity of the radial distribution makes it fully compatible with low-cost FDM extrusion tracks, serving as an optimal baseline for experimental validation.
+- Rather thorough exploration of the topic in @Grigoriev2022, wouldn't say it's a prospective topic for the thesis
+  - different approaches also demostrated in @Kristoffersen2017 (using Lattice Structure), @Paraskevopoulos2022 (optimized design),  or @Moschner2025 (use of foaming PLA)
+
+
+
+== Potential Research Directions for All-Dielectric Polarization and Beam-Forming Surfaces
+
+=== Transmitarray with Different Unit Cell Design
+- Similar to idea proposed in reflectarray sections, such realized as transmitarray instead of reflectarray
+
+=== All-Dielectric Transmitarray with Integrated Polarization Diversity
+- *Underlying Electromagnetic Problem:*
+  - The Zhu 2020 coding polarizer lens combines polarization conversion and beam forming in one layer @Zhu2020, but uses a single LP feed.
+  - If each unit cell can be designed to independently control *both* the transmission phase and the output polarization state, the transmitarray can produce multiple beams with different polarizations from a single feed — a *polarization-multiplexed transmitarray*.
+- *Additively Manufactured Architecture:*
+  - The unit cell geometry (its in-plane aspect ratio, height, and rotation angle) encodes three independent degrees of freedom: $phi_parallel$ (phase for E-field parallel to one axis), $phi_perp$ (phase for perpendicular), and the rotation angle $theta$.
+  - These three DOFs can independently control the transmitted phase and the output polarization ellipticity + orientation.
+  - All-dielectric 3D printing of birefringent pillars or blocks realizes the anisotropic phase response.
+- *Research Value:*
+  - A single passive all-dielectric transmitarray that simultaneously:
+    1. Collimates the feed's spherical wavefront into a plane wave,
+    2. Converts LP feed to CP output,
+    3. Spatially multiplexes LHCP and RHCP to different beam directions.
+  - This would be a *three-in-one* device that normally requires a polarizer, a lens, and a beam splitter.
+- *Challenges:*
+  - The design space (three variables per cell × hundreds of cells) is very large — surrogate modeling and optimization-based synthesis are required.
+  - The unit cell transmission magnitude must remain near-unity for both polarizations across all cell geometries — a stringent constraint that may limit the achievable phase range.
+
+=== All-Dielectric Chiral Metasurfaces for Compact Polarization Filters and Isolators
+- *Underlying Electromagnetic Problem:*
+  - True chiral media exhibit *circular dichroism* — differential transmission of LHCP vs. RHCP waves — without requiring external magnetic bias (unlike Faraday rotators).
+  - In the microwave/mm-wave regime, chiral metasurfaces can function as compact circular polarization filters, isolators (when combined with linear polarizers), or circular-polarization duplexers.
+  - To date, microwave chiral metasurfaces predominantly use metallic helices or resonators All-dielectric implementations are essentially unexplored.
+- *Additively Manufactured Architecture:*
+  - 3D-printed dielectric helices, twisted strips, or interlocking chiral unit cells made from high-$epsilon_r$ ceramic filament or SLA ceramic.
+  - The dielectric chirality arises from the 3D geometry rather than from conduction currents — eliminating ohmic loss entirely.
+  - The design maps directly from optical-regime silicon chiral metasurfaces (well-studied in photonics) to microwave dimensions via geometric scaling.
+- *Research Value:*
+  - Opens a new sub-area: *microwave dielectric chiral metamaterials* — the microwave counterpart of a mature optical field.
+  - Enables ultra-compact, zero-power-consumption polarization filters for satellite communications.
+- *Challenges:*
+  - The degree of circular dichroism (CD) in low-contrast all-dielectric structures is inherently weaker than in metal-dielectric hybrids — high-$epsilon_r$ ceramics ($epsilon_r > 8$) are likely necessary to achieve practically useful CD.
+  - 3D printing of truly free-standing helical geometries may require soluble support material or specialized multi-axis printing.
+
+== Metamaterial Phase-Screens
+- There's essentially zero chance NTUST would be able to manufacture something like this.
+  - Respectively it would maybe be possible in THz range with lithography, but not in GHz / tents of GHz range
+- Phase Modulating Screens
+  - *Mechanism:* Planar or conformal spatial phase modulators distributing subwavelength meta-atoms to dynamically or statically alter wavefront profiles.
+  - *Design Rule:* Imparts localized phase shifts spanning a complete 360-degree envelope to replace traditional thick, curved refractive lenses.
+  - Translating continuous phase distributions into discrete coding matrices creates phase quantization errors that induce parasitic scattering and side-lobe degradation.
+  - Inter-layer bonding variations and microscopic air gaps introduce material anisotropy, causing phase deviations from simulated target metrics.
+
+=== Spin-decoupled broadband transmissive metasurfaces
+- *Source:* _IEEE Transactions on Antennas and Propagation_, vol. 71, no. 9, 2023 @Zhu2023.
+- *Research Context:* Investigation of multi-layered transmissive metasurfaces utilizing spin-decoupled unit cells to achieve wideband performance.
+- Methodology & Construction
+  - Implemented nine-layer unit cells leveraging advanced 3D printing methods to handle precise spatial allocations.
+  - Manufactured using multi-material integrated 3D printing with NIR lamp sintering of ink
+- Experimental Findings
+  - Demonstrated clean decoupling and independent phase control of orthogonal circular polarization components.
+  - Verified that additive manufacturing successfully executes high-precision multi-layered geometries without cleanroom lithography.
+
+=== The Phase Switched Screen
+- #INFO not even related to 3D printing, not to mention it's an active component but it's cool.
+- *Source:* _IEEE Antennas and Propagation Magazine_, vol. 46, no. 6, 2004 @Chambers2004.
+- *Research Context:* Early development of phase-switched architectures for dynamic reflection and scattering control.
+- Methodology & Construction
+  - Explored dynamic modulation of surface impedance parameters under plane wave illumination.
+- Experimental Findings
+  - Formed the theoretical blueprint for digital coding arrays and dynamic wavefront manipulation techniques.
 
 == Radomes
 - A conventional antenna radome is fundamentally required to maximize electromagnetic transmission ($S_{21} approx 0 "dB"$) while protecting the enclosed antenna from mechanical and environmental forces.
@@ -837,7 +1066,7 @@ where $n_0$ is the refractive index at 100% material infill, $r$ is the radial o
 - Subtractive milling or multi-layer etching cannot easily fabricate curved, non-planar 3D metasurfaces with uniform unit-cell spacing.
 - Additive manufacturing enables conformal dome printing, which is subsequently metalized via electroplating, conductive painting, or co-extruded resistive filaments.
 
-=== Conformal 3D-Printed Bandpass mm-Wave FSS Radome (Scientific Reports 2021)
+=== Conformal 3D-Printed Bandpass mm-Wave FSS Radome
 - #INFO Also quite interesting and electroplating shouldn't be impossible at NTUST.
 - *Source:* _Scientific Reports_, vol. 11, 2021 @Zhang2021.
 - *Research Context:* Design, 3D printing, electroplating, and near-field measurement of a 3D conformal bandpass FSS radome operating in the 26–40 GHz millimeter-wave regime.
@@ -854,37 +1083,6 @@ where $n_0$ is the refractive index at 100% material infill, $r$ is the radial o
 
 
 #pagebreak()
-= Metamaterial Phase-Screens
-- There's essentially zero chance NTUST would be able to manufacture something like this.
-  - Respectively it would maybe be possible in THz range with lithography, but not in GHz / tents of GHz range
-
-== Phase Modulating Screens
-- *Mechanism:* Planar or conformal spatial phase modulators distributing subwavelength meta-atoms to dynamically or statically alter wavefront profiles.
-- *Design Rule:* Imparts localized phase shifts spanning a complete 360-degree envelope to replace traditional thick, curved refractive lenses.
-- Translating continuous phase distributions into discrete coding matrices creates phase quantization errors that induce parasitic scattering and side-lobe degradation.
-- Inter-layer bonding variations and microscopic air gaps introduce material anisotropy, causing phase deviations from simulated target metrics.
-
-=== Spin-decoupled broadband transmissive metasurfaces (IEEE TAP 2023)
-- *Source:* _IEEE Transactions on Antennas and Propagation_, vol. 71, no. 9, 2023 @Zhu2023.
-- *Research Context:* Investigation of multi-layered transmissive metasurfaces utilizing spin-decoupled unit cells to achieve wideband performance.
-- Methodology & Construction
-  - Implemented nine-layer unit cells leveraging advanced 3D printing methods to handle precise spatial allocations.
-  - Manufactured using multi-material integrated 3D printing with NIR lamp sintering of ink
-- Experimental Findings
-  - Demonstrated clean decoupling and independent phase control of orthogonal circular polarization components.
-  - Verified that additive manufacturing successfully executes high-precision multi-layered geometries without cleanroom lithography.
-
-=== The Phase Switched Screen (IEEE APM 2004)
-- #INFO not even related to 3D printing, not to mention it's an active component but it's cool.
-- *Source:* _IEEE Antennas and Propagation Magazine_, vol. 46, no. 6, 2004 @Chambers2004.
-- *Research Context:* Early development of phase-switched architectures for dynamic reflection and scattering control.
-- Methodology & Construction
-  - Explored dynamic modulation of surface impedance parameters under plane wave illumination.
-- Experimental Findings
-  - Formed the theoretical blueprint for digital coding arrays and dynamic wavefront manipulation techniques.
-
-
-#pagebreak()
 
 #v(2em)
-#bibliography("references.bib", style: "ieee")
+#bibliography("bibliography.bib", style: "ieee")

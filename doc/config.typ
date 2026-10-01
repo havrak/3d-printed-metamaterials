@@ -31,7 +31,7 @@
 
   align(center)[
     #text(size: 18pt, weight: "bold")[3D Printed Metamaterials] \
-    #text(size: 14pt)[Exploratory study and Core Themes] \
+    #text(size: 14pt)[Exploratory study] \
     #link("https://typst.app/project/wBQGVX8CTMedKqXLVoBbtb")[Online Version]
   ]
 
