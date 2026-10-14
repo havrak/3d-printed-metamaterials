@@ -1,4 +1,11 @@
 #import "config.typ": *
+
+#align(center)[
+    #text(size: 18pt, weight: "bold")[3D Printed Metamaterials] \
+    #text(size: 14pt)[Exploratory study] \
+    #link("https://typst.app/project/wBQGVX8CTMedKqXLVoBbtb")[Online Version]
+]
+
 #show: conf
 
 #outline()
@@ -131,22 +138,33 @@
 
 === SLA, DLP, and LCD Resins
 - Photopolymerization ensures optimal spatial resolution for fine subwavelength metamaterial geometries.
-- Experimental customized resins leverage high mass fractions of titanium dioxide or barium titanate - this substantially attenuates incident light and restricts UV curing depth per layer.
-  - In case of $"TiO"_2$ with contraction at max around 20~\% high print resolution ($<= 100 mu"m"$) can still be maintained @Malas2019.
+- There are some problems with sedimentation - leading to change in materials properties between different layers.
+- Experimental customized resins leverage high mass fractions of titanium dioxide or barium titanate
+  - Additives  substantially attenuate incident light and restricts UV curing depth per layer - requiring lower level height and longer curing times.
+  - With $"TiO"_2$ contraction at max around 20~\% high print resolution ($<= 100 mu"m"$) can still be maintained @Malas2019.
+    - There aren't any commercially available resins with $"TiO"_2$.
+    - However at this loading the real part of permittivity rosed only to $epsilon_r = 3.88$
   - $"BaTiO"_3$ loaded resins achieves up to $epsilon_r = 9$ and are commercially available.
-  - There aren't any commercially available resins with $"TiO"_2$ for high permittivity the market is dominated by $"BaTiO"_3$ from 3Dresyns.
+    - 500 g of nanoparticles at round 150 USD. At worse it would be possible to mix it manually.
+    - $"BaTiO"_3$ exhibits a ferroelectric dipole relaxation at higher frequencies.
+    - $tan delta$ of 0.113 was measured in the range of 8.2 to 12.5~GHz by @Yao2021 with $epsilon_r approx 9.5$.
+    - However base epoxy in the study already had a fairly high $tan delta$ of 0.045.
+    - 3Dreyns HP1 BTO70 achieves a $tan delta = 0.04$
+    - Hard to say how much more engineering has 3Dresyns done - the dampening effect can be futher reduced by enclosing BTO in low-loss dielectric shell like $"SiO"_2$ or quality of $"BaTiO"_3$ can be improved so that it has less micro voids tapping air and moisture.
+- Theoretically other additives could be used that aren't ferroelectric and are actually used for high frequency applications.
+  - For example: calcium titanate, barium neodymium titanate, strontium titanate.
+  - Powder with nano particles of them is really expensive.
 - Rogers Radix Printable Dielectric operates at a relatively low 2.8 $epsilon_r$ with a specialized dissipation factor of 0.0043 at 10 GHz @RogersRadix2026.
   - Wouldn't say it enables something more than conventional SLA filaments, just that Rogers is relatively trustworthy so complicated measurement process could be skipped.
-  - Not really interesting for the thesis.
-  - Also the permivitivity is roughly comperable to that of other resints @Vargas2022.
+  - Also the permittivity is roughly comparable to that of other resins @Vargas2022.
 - 3Dresyns HP1 BTO70 employs suspended ferroelectric barium titanate to provide high dielectric response.
   - Manufacturer data for HP1 BTO70 details an $epsilon_r$ range of 8 to 9 with a loss tangent below 0.04 across 10 to 20 GHz range @3DresynHP1BTO70.
   - Additive used is Barium Titanate $"BaTiO"_3$.
   - Exhibit's also ferroelectric, pyroelectric and piezoelectric properties.
-  - Very expensive at 18,700 NTD per 500~g.
+  - Very expensive at 590 USD per 500~g.
 - 3Dresyns HP1 Clear functions as an optically transparent high-permittivity photopolymer alternative.
-  - HP1 Clear maintains an $epsilon_r$ between 8 and 12 at lower frequency spectra @3DresynHP1Clear.
-  - Slightly cheaper at 11,200 NTD per 500~g.
+  - HP1 Clear maintains an $epsilon_r$ between 8 and 12 at MF frequencies @3DresynHP1Clear.
+  - Slightly cheaper at 350 USD per 500~g, but $tan delta$ will probably rise dramatically in microwave region
 - Most ceramic loaded photocurable resins don't exhibit that high of a dielectric permittivity as the additive concentration is usually fairly small.
   - According to @Whittaker2023 the permittivity should be around 4.
   - R-CF3000 and HS-R2000 are listed as examples of ceramic loaded resins  @Neway3DPCeramic.
@@ -426,6 +444,25 @@
   - #INFO The quasi-cutoff concept is a cool — rather than using an absorber or complex termination, the air-half of the spacer simply does not support a guided mode. This is essentially a *modal* approach to suppressing the backward wave, distinct from the impedance-tapering approach discussed in the Monolithic Matched Termination research proposal. However in the forward direction there should still be unwanted radiation
   - While not 3D printed the dielectric spacer design is compatible with 3D printing technology
 
+==== Dual-Beam Dual-Circularly Polarized Leaky Elliptical Waveguide Antenna With 2×2 MIMO Capability
+- *Source:* _IEEE Antennas and Wireless Propagation Letters_, 2026 @Chen2026.
+- *Research Context:* A dual-beam, dual-circularly-polarized leaky-wave antenna using an elliptical waveguide (EWG), enabling 2×2 MIMO from a single waveguide structure with orthogonal LHCP and RHCP beams.
+- Methodology & Construction
+  - A hollow aluminum EWG (semi-major axis $a = 22.4$ mm, eccentricity $e = 0.9$) loaded with 9 periodic unit cells, each containing dual square slots offset from the central axis.
+  - CP generation is analytically derived from the $"TE"_("c"11)$ mode of the EWG: at off-axis positions, orthogonal longitudinal and azimuthal wall currents coexist with a natural $90 degree$ phase difference. The optimal slot offset angle $eta_0 = 64.6 degree$ is solved numerically from equal-amplitude condition of the two equivalent magnetic currents.
+  - An initial single-slot design suffered from an undesired $-2$nd spatial harmonic and an open stopband (OSB) near broadside. A dual-slot configuration with $P/4$ spacing was introduced, providing destructive interference for the $-2$nd harmonic while preserving the 0th and $-1$st harmonics, and simultaneously suppressing the OSB.
+  - SMA connectors at both ends serve as feeding ports: Port 1 excites LHCP beams, Port 2 excites RHCP beams. A stepped-width probe transition achieves $|S_11| < -25$ dB over 5.0--6.0 GHz.
+- Experimental Findings
+  - Operating band: 5.1--5.9 GHz with axial ratio below 3 dB and peak realized gain of 10.84 dBi.
+  - 2×2 MIMO throughput reaches 316.9 Mb/s (vs. ~159 Mb/s per single port) with cross-polarization coupling below 20% at 2 m and below 3% at 4 m -- a substantial improvement over the dual-LP equivalent (~80% at 2 m).
+  - Stable dual-beam CP radiation across the band, with the dual-slot design effectively suppressing both the OSB and higher-order spatial harmonics.
+- *Personal notes*
+  - The key innovation is using the EWG's intrinsic modal properties to generate orthogonal CP states from a single structure -- no external polarizer or complex feeding network required.
+  - The $P/4$ dual-slot trick for simultaneous OSB and harmonic suppression is elegant and could transfer to other LWA platforms.
+  - The antenna is electrically long (12.83 $lambda_0$) and operates at relatively low frequency (C-band). Scaling to mm-wave would require miniaturization, perhaps using 3D-printed dielectric EWG.
+  - The paper notes the design can be extended to planar platforms like SIW -- this opens a path to 3D-printable implementations.
+
+
 === Possible Research Areas for Leaky-Wave Antennas
 
 ==== Monolithic Multi-Material Matched Terminations for LWAs
@@ -542,6 +579,21 @@
   - The dual-grating geometry has two grating layers at different heights within the substrate — this requires printing of internal air gaps (the lower grating cavity), which is challenging in FDM (overhangs).
   - #INFO The paper uses a Mikaelian lens integrated into the same dielectric slab for wavefront collimation — this adds another layer of printing complexity that could be deferred by using a simpler direct waveguide feed for initial validation.
 
+==== #INFO This Area is Under Construction
+Take @Chen2026 and realize something simmilar using grating design.
+Original paper achieves dual-CP diversity by exploiting the elliptical waveguide's $"TE"_("c"11)$ mode, where two orthogonal current components naturally exist at off-axis positions with a $90 degree$ phase difference.
+This is fundamentally a waveguide-mode-based approach.
+
+To realize something similar with a dielectric grating LWA (e.g., the @Kaji2023 style perforated dielectric structure), a different mechanism would be needed.
+Since dielectric gratings don't inherently provide orthogonal current components with a $90 degree$ phase offset.
+
+One approach would be to use a dual-grating unit cell where the two gratings in each period are designed to scatter orthogonal field components.
+Drawing from @Francois2026 -- where a shifted dual-grating on a dielectric slab achieves unidirectional radiation through constructive/destructive interference in the vertical direction -- the same principle could be adapted for polarization diversity.
+Instead of interfering top vs. bottom radiation, the two gratings could be designed so that one feed excites a TE-like slab mode (radiating with one polarization) while a feed from the opposite end excites a TM-like mode (radiating with orthogonal polarization), both propagating in opposite directions.
+
+The key challenge is that in a simple dielectric slab, the fundamental TE and TM modes have different cutoff frequencies and propagation constants, so the beam angles would differ for the two polarizations at the same frequency.
+A square or circular dielectric waveguide (where the two orthogonal modes are degenerate, i.e., identical $beta$) would be a better host structure -- the grating could then be designed so both polarizations radiate at the same angle but in opposite directions, mirroring @Chen2026's architecture.
+
 === Other Papers
 - @Liu2026
   - talks about some Spoof Surface Plasmon Polaritons (SSPPs) -- looks cool but I have no idea what it is
@@ -566,7 +618,7 @@
 
 === Phase Tuning Mechanisms
 - The unit cell must deliver a reflection phase coverage of at least $360 degree$ with near-unity reflection magnitude ($|S_11| approx 1$) for high aperture efficiency.
-  - however for smaller arrays (that require to be illuminated by already fairly tight beam) a smaller phase covererage is required @Nayeri2018;
+  - however for smaller arrays (that require to be illuminated by already fairly tight beam) a smaller phase covererage (e.g. $300 degree$) is required @Nayeri2018;
 - *Reflectarray is continous:*
   - There are no strictly defined physical boundaries between individual unit cells.
   - Propagation parameters of each cell are controlled via spatial variations in material density or perforation to achieve the desired phase shift.
@@ -588,7 +640,7 @@
       - Whole $2 pi$ of phase change can be covered using resonator design @Zhang2017.
         - There the change in resonant frequency and phase was achieved by having fixed dielectric constant, fixing two dimensions of the resonator and altering the final one
         - Different approach would be altering the permittivity of the material thus tuning the resonant frequency - resonator blocks could then be of the same size.
-    -  Variable rotation angle:
+    - Variable rotation angle:
       - Restricted to CP designs.
       - Rotating the element by given angle base will change the phase delay by some angle (not neccesarily mapping 1:1).
       - Not sure if this could be applicable to dielectric resonators - probably yes.
@@ -597,6 +649,78 @@
   - If the internal permittivity of the discrete cell is directly tunable, the physical dimensions can remain strictly constant.
   - Altering the localized permittivity directly shifts the resonant frequency of the fixed-geometry cell, thereby changing the reflection phase at the operating frequency without requiring length adjustments.
   - For non-resonant discrete cells acting as variable delay lines, altering permittivity modifies the propagation constant, providing the required phase delay independently of physical height.
+
+=== Size of the Array
+
+==== Array Size
+
+Using basic gain formula
+$
+  G = eta (4 pi A)/(lambda_0^2),
+$
+
+a gain of the reflect array can be estimated. Assuming aperture efficiency of 40~%, closed to what was achieved by @Massaccesi2023 using $0.3 lambda_0$ size cells, @Beccaria2025 achieved 50~% with $0.4 lambda_0$ size. Table bellow shows rough gain estimation for a square aperture (Since the print bed is square there's no reason to consider any other geometry).
+
+#align(center)[
+  #table(
+    columns: 7,
+    align: center,
+    [*Aperture Size* ($lambda$)],
+    [*Gain* (dBi)],
+    [*Size 10 GHz* (mm)],
+    [*Size 15 GHz* (mm)],
+    [*Size 20 GHz* (mm)],
+    [*Size 25 GHz* (mm)],
+    [*Size 30 GHz* (mm)],
+
+    [6], [22.5], [180], [120], [90], [72], [60],
+    [8], [25.07], [240], [160], [120], [96], [80],
+    [10], [27.01], [300], [200], [150], [120], [100],
+    [12], [28.60], [360], [240], [180], [144], [120],
+    [14], [29.94], [420], [280], [210], [168], [140],
+    [16], [31.10], [480], [320], [240], [192], [160],
+    [18], [32.12], [540], [360], [270], [216], [180],
+    [20], [33.03], [600], [400], [300], [240], [200],
+  )
+]
+
+==== Unit Cell Size
+
+All text bellow is taken from @Nayeri2018.
+The standard rule for reflectarrays is that the unit cell periodicity should be $<= lambda_0/2$ at the design frequency to avoid grating lobes.
+Dimension of $lambda_0/2$ seems to be the standard in other literature.
+
+#align(center)[
+  #table(
+    columns: 3,
+    align: center,
+    [*Periodicity* ], [*Advantages*], [*Disadvantages*],
+    [$lambda_0/2$], [Standard; sufficient phase range ($300 degree$); good for large apertures], [narrower bandwidth],
+    [$lambda_0/3$],
+    [Better aperture sampling; wider bandwidth; lower element losses],
+    [Reduced phase range; steeper phase slope (more quantization error)],
+
+    [$lambda_0/4$],
+    [Even wider bandwidth; further loss reduction; better for small-to-moderate arrays],
+    [Phase range severely restricted; would necessitate multi-layer design or high $epsilon_r$ material],
+  )
+]
+
+Especially if the thesis will be focused on creating reflectarray with additional capabilities like polarization transformation it's not worth to consider other cell designs then with $lambda_0/2$ base dimension.
+
+In terms the heigh, higher cell will mean A) larger losses in the dielectric and B) being more succeptible to incidence angle changes.
+
+==== 3D Printing limitations
+
+Typical FDM printer print bed is in the range of 200 to 300~mm. For SLA most are between 120 to 150~mm.
+As the thesis will be mainly research focused a aperture size could be on the lower end - between 8 to 12 $lambda_0$ giving size that should be printable on FDM even at 10 GHz and SLA till 25 GHz assuming 150~mm print bed.
+Though I've stumbled upon some papers who went as low as $5.5 lambda_0$.
+
+However, nozzle resolution of FDM printer is around 0.4~mm. This equal to $1/(7.5) lambda_0$ at 10~GHz and only $1/(2.5) lambda_0$ at 30~GHz.
+I'm highly skeptical that the unit cell could have more complex design as the resolution of the 3D printer just isn't there.
+This would beam that design frequency would have to be significantly lower $->$ thus the array would not fit the print bed and even for moderate gain would need to be constructed from multiple prints.
+
+
 
 === Existing Research
 
@@ -676,7 +800,7 @@
   - Uses array of cylindrical dielectric resonators.
   - Zetamix $epsilon_r$ 7.5 ceramic-loaded filament ($"TiO"_2$-based) was used with FDM printing.
   - Different unit cells designs were analyzed
-    - Cylindrical unit cells of fixed external dimensions but variable internal infill produce the required $360 degree$ reflection phase range.
+    - Cylindrical unit cells of fixed external dimensions but variable internal infill produce the required $300 degree$ reflection phase range.
     - While testing effect of height of the unit cell, while keeping permittivity fixed, it was found that the base permittivity of the material needed to be fairly high to achieve the results -- permittivity of $epsilon_r = 5$ was unable to cover range of $360 degree$
     - Final design selected a fixed height and fixed permittivity (controlled with infill)
 - Experimental Findings
@@ -718,23 +842,6 @@
     - Even in small array of 20 x 20 the number of cells is 400.
     - It's hard to say if the slicers would be able to handle this. The functionality is more designed for low tens of individual infill zones.
 - It would generally be beneficial to connect regions of same infill level together - thus moving from reflectarray to more continous structure such as kinoform, phase fresnel reflector.
-
-==== Reflectarrays with Form Birefringence
-- *Underlying Electromagnetic Problems*
-  - Utilizing clever unit cell design (cells that exhibit anisotropy along their principal axis) a polarization transformation (using similar mechanism as transmitarrays) or XPD improvement can be achieved.
-  - Example in @Cheng2022 - cell geometry is different in $x$ and $y$ axis. Thus exhibits a form birefringence affective EM wave differently in each axis.
-  - Or similarly while most feeders will have some cross-polar reception the array can be designed in such a way that only the desired polarization will be focused - thus improving XPD.
-  - Typically such designs relied on blocks of differing height
-- *Additively Manufactured Polarization Reflectarray Architecture:*
-  - Instead of using blocks of different heights a uniform height array would be printed where different handling of each polarization would be achieved with unit cell design.
-  - Basic cell design of @Massaccesi2023 could be modified to instead use a eliptical cutout - which would give different permittivity in both axis.
-- *Research Value:*
-  - Utilizing design based on @Massaccesi2023 would lead to more mechanically robust system then other solutions.
-  - I don't think such design has been realized #TODO verify more thoroughly, haven't been able to find anything at a quick glance.
-- *Challenges:*
-  - Information on anisotropy of the material would be required complicating some measuring techniques -- would basically necessitate a measuring while having the material squeezed between two waveguides.
-  - Properties of polarization would be entangled - some computer optimization would be required to achieve the correct properties.
-
 
 ==== Conformal 3D-Printed Reflectarrays on Arbitrary Curved Surfaces
 - *Underlying Electromagnetic Problem:*
@@ -780,10 +887,67 @@
 - *Challenges:*
   - The focal length is locked at print time -- no post-fabrication adjustment is possible, so simulation accuracy must be extremely high.
 
+
+==== Reflectarrays with Form Birefringence
+- *Underlying Electromagnetic Problems*
+  - Utilizing clever unit cell design (cells that exhibit anisotropy along their principal axis) a polarization transformation (using similar mechanism as transmitarrays) or XPD improvement can be achieved.
+  - Example in @Cheng2022 - cell geometry is different in $x$ and $y$ axis. Thus exhibits a form birefringence affective EM wave differently in each axis.
+  - Or similarly while most feeders will have some cross-polar reception the array can be designed in such a way that only the desired polarization will be focused - thus improving XPD.
+  - Typically such designs relied on blocks of differing height
+- *Additively Manufactured Polarization Reflectarray Architecture:*
+  - Instead of using blocks of different heights a uniform height array would be printed where different handling of each polarization would be achieved with unit cell design.
+  - Basic cell design of @Massaccesi2023 could be modified to instead use a eliptical cutout - which would give different permittivity in both axis.
+- *Research Value:*
+  - Utilizing design based on @Massaccesi2023 would lead to more mechanically robust system then other solutions.
+  - I don't think such design has ever been realized.
+- *Challenges:*
+  - Information on anisotropy of the material would be required complicating some measuring techniques -- would basically necessitate a measuring while having the material squeezed between two waveguides.
+  - Properties of polarization would be entangled - some computer optimization would be required to achieve the correct properties.
+
+
+===== Achieving Neccessary Phase Change
+The unit cells design needs to enable $Delta phi_x = 360 degree$ while maintaining $Delta phi_y - Delta phi_x approx 90 degree$ across the whole phase range.
+This effectively means that the cell needs to be able to generate a range of $90 degree$ to $450 degree$ in one direction.
+Achieving such phase delays is quite problematic.
+
+Block based CP transformers have a block design capable of achieving the base range of 0 to $max phi_x$ while having block of $y$ component offset in height.
+However this won't be possible in this realization - a UC geometry will need to cover the whole range while altering only cutout parameters.
+
+Assuming the array will be more compact (already only smaller arrays are being considered) and will be illuminated by somewhat decent feeder (no reason not to do so) we could get by with the smaller $max phi_x$ range.
+Let's say a maximal needed phase change will be $300 degree$ this still means we need to cover range till $390 degree$.
+
+Here it's hard to estimate behavior @Zhang2017 achieved only $270 degree$ with $epsilon_r = 2.75$ needing to use custom composite with $epsilon_r = 4.4$.
+Different design from @Beccaria2025 required a $epsilon_r = 7.5$ to achieve around $300 degree$.
+Core paper for this topic @Massaccesi2023 had abysmally small phase coverage of just about $200 degree$ - this was probably just sufficient enough for the small aperture size and still probably limited performance towards the edges.
+
+This causes a significant problems.
+SLA has the resolution and print bed size to realize a smaller reflectarray at high frequencies.
+However, high permittivity resins are prohibitively expensive -- thus a resin would need to be mixed manually by loading $"BaTiO"_3$.
+Only then (Based on just assumptions, no simulations were carried out) could this array be 3D printed using SLA.
+
+For FDM the filament problem isn't really there, with Zetamix having great offerings.
+However, there is a problem with print resolution - not only is the unit cells small, but also the geometry isn't straightforward to print.
+
+The narrow gaps at the ellipse tips may fall below the printer's reliable feature size, causing inconsistent extrusion or incomplete fill.
+Rhombus cutout would fair a bit better, but it isn't a silver bullet.
+
+Thus the design frequency would need to be much smaller - so that resolution isn't that limiting.
+But then there are issues with print bed size.
+I would hope that printing the array in four parts would enable use of low enough frequency where the resolution would be sufficient.
+
+Also a possible way to improve the printability on FDM could be inverting the design - instead of elliptical/rhombus voids we could make pillars - not requiring to print thin walls that match the dimensions and such.
+This would improve the printability a bit and I don't think it was done either.
+Still the 0.4~mm nozzle size could be a problem - after all @Beccaria2025 design was really super simple
+
+#TODO using $epsilon_r = 9$ (To give some headroom with zetamix $epsilon_r = 10$) find out if unit cells capable of these phase shifts is realizable in Ku/K/Ka band.
+
+
+
 == Other Papers
 - @Oni2026 - just overview of current state of Metamaterial based antennas, not much related to 3D printing.
 - @Dong2012 - overview of metamaterial antennas, has a section on antennas with metasurface.
 - @Whittaker2023 - applications of 3D printing in antennas and metaantennas.
+
 
 #pagebreak()
 = Perfectly Matched Layer Absorbes and Radomes
@@ -829,7 +993,7 @@
 
 == Physical Mechanisms for Dielectric-Based Polarization Control
 
-=== Birefringent Quarter-Wave Plate (Form Birefringence)
+=== Form Birefringence
 - *Mechanism:*
   - Intrinsically isotropic material is structured with deep-subwavelength features (e.g., periodic cutouts, asymmetric holes.
   - Or a subwavelength gratings from two or more isotropic materials however final structure is anisotropic.

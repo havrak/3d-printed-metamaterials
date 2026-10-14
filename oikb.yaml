@@ -1,0 +1,17 @@
+sources:
+  - name: thesis-research
+    source: doc/
+    kb-id: bb18293f-37cb-4e62-89f4-7a1fb822e770
+    target-path: research
+    filter:
+      include:
+        - "*.typ"
+        - "*.bib"
+
+  - name: reference-papers
+    source: /path/to/actual/papers_directory
+    kb-id: bb18293f-37cb-4e62-89f4-7a1fb822e770
+    target-path: papers
+    filter:
+      include:
+        - "*.pdf"

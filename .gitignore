@@ -26,5 +26,6 @@ memoize.memo.dir
 *.xmpdata
 temp_files
 dependencies.lock
-
-
+print_test_stl
+knowledge_base/
+meeting/
