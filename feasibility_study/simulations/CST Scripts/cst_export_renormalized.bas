@@ -6,10 +6,8 @@
 ' the broken touchstonen export implementation.
 '
 ' This script implements both custom export to touchstone files and normalization of the
-' floquet port. The code would be quite a bit simpler without doing the renormalization
-' since we need to do the S -> Z matrix conversion, normalize the Z matrix and then
-' return back to S matrix. But I don't then need to keep track of the port impedance and what not
-' even though it should alwasy be equal to the free space impedance. Better safe then sorry ig.
+' floquet port to free space impedance (in case CST did something weird and didn't use 
+' the free space impedance by default).
 
 Sub Main()
     Dim exportPath As String
@@ -51,10 +49,10 @@ Sub Main()
     Dim m12 As Double, p12 As Double, m22 As Double, p22 As Double
 
 
-    zref = 50.0
+    zref = 376.7303136
 
     ' --- Configuration ---
-    exportPath = "C:\Users\kryst\Documents\Thesis\export\"
+    exportPath = "C:\Users\kryst\Documents\Thesis\Data\Export\"
     ' ---------------------
 
     exportCount = 0

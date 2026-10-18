@@ -26,7 +26,7 @@ Sub Main()
     Dim s22r As Double, s22i As Double, m22 As Double, p22 As Double
 
     ' --- Configuration ---
-    exportPath = "C:\Users\kryst\Documents\Thesis\export\"
+    exportPath = "C:\Users\kryst\Documents\Thesis\Data\Export\"
     ' ---------------------
 
     exportCount = 0
