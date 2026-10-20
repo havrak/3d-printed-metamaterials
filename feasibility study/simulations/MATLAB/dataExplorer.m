@@ -1,7 +1,7 @@
 % ---- Question A: phase range on the major axis for different pillar heights ----
 function dataExplorer()
 
-dirpath = '../Data/tmp';   % <-- edit
+dirpath = '../Data';   % <-- edit
 f0      = 30;                   % GHz
 lambda0 = 300/f0;               % mm
 clearance = 0.2;                % mm - Clearance around geometrical feature
