@@ -1,7 +1,7 @@
 % ---- Question A: phase range on the major axis for different pillar heights ----
 function dataExplorer()
 
-dirpath = '../Data/';   % <-- edit
+dirpath = '../Data/tmp';   % <-- edit
 f0      = 30;                   % GHz
 lambda0 = 300/f0;               % mm
 clearance = 0.2;                % mm - Clearance around geometrical feature
@@ -54,7 +54,7 @@ for k = 1:nb
     controls.(p).list.Layout.Row = k;  controls.(p).list.Layout.Column = 2;
 
     controls.(p).fix = uicheckbox(side, 'Text', 'fix', ...
-        'Value', 0, 'ValueChangedFcn', @(~,~) refresh());
+        'Value', 0, 'ValueChangedFcn', @(~,~) refreshWrapper());
     controls.(p).fix.Layout.Row = k;  controls.(p).fix.Layout.Column = 3;
 end
 
@@ -65,7 +65,7 @@ controls.showMinor.Layout.Row = nb + 1;
 controls.showMinor.Layout.Column = [1 2];
 
 btn = uibutton(side, 'Text', 'Refresh / print stats', ...
-    'ButtonPushedFcn', @(~,~) refresh());
+    'ButtonPushedFcn', @(~,~) refreshWrapper());
 btn.Layout.Row = nb + 2;
 btn.Layout.Column = [1 2];
 
@@ -87,12 +87,29 @@ axm = uiaxes(root);
 axm.Layout.Row = 2; axm.Layout.Column = 2;
 xlabel(axm, 'a (mm)'); ylabel(axm, '|S| (dB)');
 title(axm, 'Reflected magnitude'); grid(axm, 'on'); hold(axm, 'on');
-linkaxes([ax axm], 'x');             % shared a-axis
 
-refresh();
+drawnow;
+
+refreshWrapper();
 
 % ----------  refresh  --------------------------------
+    function refreshWrapper()
+        persistent busyRefresh
+        if ~isempty(busyRefresh) && busyRefresh
+            return
+        end
+        busyRefresh = true;
+        try
+            refresh();          % the actual work in a helper
+        catch ME
+            busyRefresh = false;
+            rethrow(ME);
+        end
+        busyRefresh = false;
+    end
+
     function refresh()
+        fprintf('refresh: executing refresh\n');
         update_availability();
         fixed = struct(); free = {};
         for kk = 1:nb
@@ -139,7 +156,7 @@ refresh();
                 glabel{g} = sprintf('%s=%g', p, gvals(g));
             end
         end
-
+        fprintf('refresh: starting plotting\n');
         % ----------  draw  ----------
         cla(ax);  hold(ax, 'on');
         cla(axm); hold(axm, 'on');
@@ -184,7 +201,7 @@ refresh();
                 legend(ax, 'Location', 'southwest');
                 plot(axm, aa, mag_minor_dB, '-s', 'Color', [0.6 0.6 0.6], ...
                     'LineWidth', 1.1, 'DisplayName', 'minor');
-                legend(axm, 'Location', 'best');
+                % legend(axm, 'Location', 'best');
             else
                 % multi-curve view: major only
                 plot(ax, aa, pm_u, '-o', 'Color', colors(g,:), ...
@@ -209,6 +226,8 @@ refresh();
         title(ax, 'Phase vs a  (black circles = usable points)');
 
         % ----------  statistics (text area + console)  ----------
+
+        fprintf('refresh: writing stats\n');
         statsConsoleText = {};
         statsConsoleText{end+1} = '===== selection =====';
 
@@ -265,6 +284,11 @@ refresh();
         for k = 1:numel(statsConsoleText)
             fprintf('%s\n', statsConsoleText{k});
         end
+        fprintf('refresh: Imposing limits\n');
+        xl = xlim(ax);
+        xlim(axm, xl);
+        % drawnow;
+        fprintf('refresh: finished refresh\n');
     end
 
     function update_availability()
@@ -349,6 +373,7 @@ S.phi_minor = zeros(numel(cfg),1);
 S.resid     = zeros(numel(cfg),1);
 S.mag_major = zeros(numel(cfg),1);
 S.mag_minor = zeros(numel(cfg),1);
+fprintf('build_struct: executing matrix rotation\n');
 for i = 1:numel(cfg)
     [theta_star, pm, pn, rs] = principal_phases(cfg(i).S11, cfg(i).S22, cfg(i).S12, cfg(i).S21);
     S.phi_major(i) = pm;
@@ -364,4 +389,5 @@ S.vals = struct();
 for k = 1:numel(params)
     S.vals.(params{k}) = unique(S.(params{k}));
 end
+fprintf('build_struct: struct created\n');
 end
