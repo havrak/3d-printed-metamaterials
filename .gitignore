@@ -28,9 +28,12 @@ temp_files
 dependencies.lock
 print_test_stl
 knowledge_base/
-meeting/
 feasibility study/simulations/data/export
 feasibility study/simulations/data/circle*
 feasibility study/simulations/data/rhombus*
+feasibility study/simulations/data/pillar*
+feasibility study/simulations/data/void*
 feasibility study/simulations/CST/feasibility_study_elip_pillar/
 feasibility study/simulations/CST/feasibility_study_elip_void/
+*-blx.bib
+.knowledge_base_resolved

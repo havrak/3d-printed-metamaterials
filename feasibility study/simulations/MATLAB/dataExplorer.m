@@ -1,7 +1,7 @@
 % ---- Question A: phase range on the major axis for different pillar heights ----
 function dataExplorer()
 
-dirpath = '../Data';   % <-- edit
+dirpath = '../data/void';   % <-- edit
 f0      = 30;                   % GHz
 lambda0 = 300/f0;               % mm
 clearance = 0.2;                % mm - Clearance around geometrical feature
@@ -32,17 +32,17 @@ root.ColumnSpacing = 10;
 
 % ---- sidebar ----
 nb = numel(params);
-side = uigridlayout(root, [nb + 3, 3]);
+side = uigridlayout(root, [nb + 6, 3]);
 side.Layout.Row = [1 2];
 side.Layout.Column = 1;
 side.ColumnWidth = {70, '1x', 45};
-side.RowHeight   = [repmat({70}, 1, nb), {30, 30, '1x'}];
+side.RowHeight = [repmat({70}, 1, nb), {30, 30, 30, 30, '1x'}];
 side.Padding     = [0 0 0 0];
 side.RowSpacing  = 6;
 
 controls = struct();
 for k = 1:nb
-    p    = params{k};
+    p = params{k};
 
     lbl = uilabel(side, 'Text', p);
     lbl.Layout.Row = k;  lbl.Layout.Column = 1;
@@ -58,23 +58,37 @@ for k = 1:nb
     controls.(p).fix.Layout.Row = k;  controls.(p).fix.Layout.Column = 3;
 end
 
+% ---- checkboxes ----
 controls.showMinor = uicheckbox(side, ...
     'Text', 'Show minor axis', ...
-    'Value', 1, 'ValueChangedFcn', @(~,~) refresh());
+    'Value', 1, 'ValueChangedFcn', @(~,~) refreshWrapper());
 controls.showMinor.Layout.Row = nb + 1;
-controls.showMinor.Layout.Column = [1 2];
+controls.showMinor.Layout.Column = [1 3];
 
+controls.zeroPhase = uicheckbox(side, ...
+    'Text', 'Zero phase at first point', ...
+    'Value', 1, 'ValueChangedFcn', @(~,~) refreshWrapper());
+controls.zeroPhase.Layout.Row = nb + 2;
+controls.zeroPhase.Layout.Column = [1 3];
+
+% ---- buttons (below the checkboxes) ----
 btn = uibutton(side, 'Text', 'Refresh / print stats', ...
     'ButtonPushedFcn', @(~,~) refreshWrapper());
-btn.Layout.Row = nb + 2;
-btn.Layout.Column = [1 2];
+btn.Layout.Row = nb + 3;
+btn.Layout.Column = [1 3];
 
+btnExport = uibutton(side, 'Text', 'Export figures', ...
+    'ButtonPushedFcn', @(~,~) export_figures());
+btnExport.Layout.Row = nb + 4;
+btnExport.Layout.Column = [1 3];
+
+% ---- text area (takes remaining height) ----
 txt = uitextarea(side, ...
     'Editable', 'off', ...
     'FontName', 'Consolas', ...
     'FontSize', 10, ...
     'Value', {'(no data yet)'});
-txt.Layout.Row = nb + 3;
+txt.Layout.Row = nb + 5;
 txt.Layout.Column = [1 3];
 
 % ---- plot ----
@@ -87,6 +101,9 @@ axm = uiaxes(root);
 axm.Layout.Row = 2; axm.Layout.Column = 2;
 xlabel(axm, 'a (mm)'); ylabel(axm, '|S| (dB)');
 title(axm, 'Reflected magnitude'); grid(axm, 'on'); hold(axm, 'on');
+
+lastPlot = struct('aa', {}, 'pm', {}, 'pn', {}, 'mm', {}, 'mn', {}, ...
+    'lbl', {}, 'keep', {});
 
 drawnow;
 
@@ -178,8 +195,13 @@ refreshWrapper();
             phi_major_w = mod(phi_major, 360);
 
             % unwrapped copy for display, referenced to first point -> 0
-            pm_u = unwrap(deg2rad(phi_major)) * 180/pi;  pm_u = pm_u - pm_u(1);
-            pn_u = unwrap(deg2rad(phi_minor)) * 180/pi;  pn_u = pn_u - pn_u(1);
+            pm_u = unwrap(deg2rad(phi_major)) * 180/pi;
+            pn_u = unwrap(deg2rad(phi_minor)) * 180/pi;
+
+            if get(controls.zeroPhase, 'Value')
+                pm_u = pm_u - pm_u(1);
+                pn_u = pn_u - pn_u(1);
+            end
 
             keep = usable_mask(aa, phi_major_w, mag_major, resid, ...
                 mag_floor_dB, slope_max, resid_max);
@@ -207,6 +229,14 @@ refreshWrapper();
                 plot(ax, aa, pm_u, '-o', 'Color', colors(g,:), ...
                     'LineWidth', 1.2, 'DisplayName', glabel{g});
             end
+
+            lastPlot(g).aa   = aa;
+            lastPlot(g).pm   = pm_u;
+            lastPlot(g).pn   = pn_u;
+            lastPlot(g).mm   = mag_major_dB;
+            lastPlot(g).mn   = mag_minor_dB;
+            lastPlot(g).keep = keep;
+            lastPlot(g).lbl  = glabel{g};
 
             % usable points marked at unwrapped coordinates
             plot(ax, aa(keep), pm_u(keep), 'o', 'MarkerSize', 8, ...
@@ -289,6 +319,66 @@ refreshWrapper();
         xlim(axm, xl);
         % drawnow;
         fprintf('refresh: finished refresh\n');
+    end
+
+    function export_figures()
+        figW = 800;  figH = 600;      % export size variables
+        res  = 300;
+
+        % ---------- export the phase + magnitude figure ----------
+        f = figure('Visible', 'off', 'Units', 'pixels', ...
+            'Position', [100 100 figW figH], 'Color', 'w');
+
+        % re-draw the current phase data on the temp figure
+        axE = subplot(2,1,1);
+        hold(axE, 'on'); grid(axE, 'on');
+        plot_phase_into(axE);          % helper that replays the curves
+        ylabel(axE, 'Phase delay (deg)');
+        title(axE, 'Phase vs a');
+
+        axM = subplot(2,1,2);
+        hold(axM, 'on'); grid(axM, 'on');
+        plot_mag_into(axM);            % helper that replays magnitudes
+        xlabel(axM, 'a (mm)');
+        ylabel(axM, '|S| (dB)');
+
+        % legend east of the plot
+        lg = legend(axE, 'Location', 'eastoutside');
+        lg.Interpreter = 'none';
+
+        set(gca, 'FontSize', 18);
+        axis(axE, 'tight'); axis(axM, 'tight');
+
+        exportgraphics(f, 'phase_export.eps', 'Resolution', res, ...
+            'ContentType', 'vector');
+        close(f);
+
+        fprintf('Exported phase_export.eps (%dx%d, %d dpi)\n', ...
+            figW, figH, res);
+
+
+        function plot_phase_into(axE)
+            colors = lines(max(numel(lastPlot), 1));
+            for g = 1:numel(lastPlot)
+                plot(axE, lastPlot(g).aa, lastPlot(g).pm, '-o', ...
+                    'Color', colors(g,:), 'LineWidth', 1.5, ...
+                    'DisplayName', lastPlot(g).lbl);
+                % usable points
+                plot(axE, lastPlot(g).aa(lastPlot(g).keep), ...
+                    lastPlot(g).pm(lastPlot(g).keep), 'o', ...
+                    'MarkerSize', 9, 'MarkerEdgeColor', 'r');
+            end
+        end
+
+        function plot_mag_into(axM)
+            colors = lines(max(numel(lastPlot), 1));
+            for g = 1:numel(lastPlot)
+                plot(axM, lastPlot(g).aa, lastPlot(g).mm, '-o', ...
+                    'Color', colors(g,:), 'LineWidth', 1.5, ...
+                    'DisplayName', lastPlot(g).lbl);
+            end
+            yline(axM, mag_floor_dB, '--');
+        end
     end
 
     function update_availability()

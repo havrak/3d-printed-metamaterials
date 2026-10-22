@@ -1,0 +1,201 @@
+\documentclass[aspectratio=43]{beamer}
+\usetheme{Berlin}
+
+\usepackage[english]{babel}
+\usecolortheme{dolphin}
+\usepackage{graphicx}
+\usepackage{dirtree}
+\usepackage{listings}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[utf8]{inputenc}
+\usepackage{caption}
+\usepackage{bbding}
+\usepackage{xurl}
+\usepackage{scrextend}
+\usepackage{minted}
+\usepackage{appendixnumberbeamer}
+\usepackage[backend=bibtex, style=numeric, maxcitenames=1, isbn=false, url=false, doi=false, eprint=false]{biblatex}
+
+\addbibresource{../../doc/bibliography.bib}
+
+\captionsetup{labelformat=empty}
+
+\beamertemplatenavigationsymbolsempty
+\defbeamertemplate*{title page}{customized}[1][]
+{
+\usebeamerfont{title}\inserttitle\par
+\usebeamerfont{subtitle}\usebeamercolor[fg]{subtitle}\insertsubtitle\par
+\bigskip
+\usebeamerfont{author}\insertauthor\par
+\usebeamerfont{institute}\insertinstitute\par
+\usebeamerfont{date}\insertdate\par
+\usebeamercolor[fg]{titlegraphic}\inserttitlegraphic
+}
+
+\hypersetup{unicode}
+\hypersetup{breaklinks=true}
+
+\title{3D-Printed Metamaterials}
+\subtitle{Prepared for meeting on 9.24.2026}
+\author{Havránek Kryštof}
+\date{}
+\institute{CTU, NTUST}
+\setbeamertemplate{sidebar right}{}
+\setbeamertemplate{footline}{%
+\hfill\textbf{Page \insertframenumber{}. z \inserttotalframenumber} \hspace{0.01cm} \vspace{0.1cm}}
+\setbeamerfont{footnote}{size=\tiny}
+
+\begin{document}
+
+\begin{frame}[plain]
+  \maketitle
+\end{frame}
+
+\clearpage
+\setcounter{framenumber}{0}
+
+\begin{frame}[fragile]
+	\section{Introduction}
+  \frametitle{Outline}
+  \begin{itemize}
+    \item Topic of the thesis.
+    \item High permittivity and conductive material situations.
+    \item Prospective topics in leaky-wave antennas.
+    \item Prospective topics in reflectarray antennas.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Topic of the thesis}
+  \begin{itemize}
+    \item "Metamaterial" in the loosest sense, not limited to left handed materials.
+		\item Focused only on topics utilizing dielectric, or lossy filaments
+		\item Conventional 3DP techniques - FDM, SLA, SLS
+		\item Specific topic is still to be decided.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{High Permittivity Materials}
+	\section{Materials}
+  \begin{itemize}
+		\item High permittivity enables more applications, or more compact design with lower losses.
+		\item FDM
+			\begin{itemize}
+				\item Zetamix: $\varepsilon_r=10$ with $\tan \delta 10^{-3}$, B2C
+				\item TPU: high permittivity, however $\tan \delta \approx 0.03 ~ 0.10$.
+			\end{itemize}
+		\item SLA
+			\begin{itemize}
+				\item Rogers: RogersRadix -- $\varepsilon_r = 2.8$.
+				\item 3Dresyns:  $\varepsilon_r = 8-9$ with $\tan \delta < 0.04$, pricey
+			\end{itemize}
+		\item SLS
+			\begin{itemize}
+				\item Ceramics are difficult to print, more suitable to binder jetting,
+				\item Not considered.
+			\end{itemize}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Conductive Materials}
+  \begin{itemize}
+    \item Carbon-loaded filaments possess low conductivity and behave primarily as lossy dielectrics.
+			\begin{itemize}
+				\item These low-conductivity materials excel as monolithic electromagnetic absorbers.
+				\item Proto-pasta has PLA loaded with carbon black.
+			\end{itemize}
+    \item Copper-loaded composites achieve significantly higher bulk conductivities.
+			\begin{itemize}
+				\item High-conductivity materials effectively mimic perfect conductors at microwave frequencies, enabling single-step metamaterial fabrication.
+				\item They are pricey, not considered.
+			\end{itemize}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{LWA: Monolithic Multi-Material Matched Terminations}
+	\section{Leaky-wave Antennas}
+  \begin{itemize}
+    \item Unradiated residual power at the aperture end reflects and generates high sidelobes \footfullcite{Monticone2015}.
+    \item Multi-head fused deposition modeling permits co-printing a structural dielectric and a lossy composite absorber.
+    \item Continuous spatial impedance tapering suppresses back-reflection and ensures reflectionless energy transfer.
+    \item Static dissipative polylactic acid or conductive polyurethane can be utilized for distributed attenuation.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{LWA: Continuous Sinusoidal Reactance Surfaces}
+  \begin{itemize}
+		\item Most basic LWAs discretize periodic modulation into square pulses (blocks of different $\varepsilon_r$ materials, air), exciting unwanted higher-order space harmonics.
+		\item Commonly a more complex unit cell design or heigh modulation in $z$-axis is used to solve this.
+		\item Different Approach: Varying infill or using foaming PLA
+		\item More complex solutions then already existing, but final structure is a slab on the outside
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{LWA: Chirped Conformal Pre-Distorted Geometries}
+  \begin{itemize}
+    \item Mounting a periodic leaky-wave antenna onto a curved surface introduces severe non-linear phase errors.
+    \item Additive manufacturing enables phase correction by continuously modifying the internal geometric fill fraction \footfullcite{Bartley2025}.
+    \item Inverse-design methodology progressively chirps the unit-cell periodicity along the curved propagation axis.
+    \item The conformal structure directly synthesizes a collimated high-gain plane wave from a highly curved physical surface.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Reflectarrays: Graded-Index via Infill Density Control}
+	\section{Reflectarrays Antennas}
+  \begin{itemize}
+    \item Conventional dielectric reflectarrays rely on geometric height variations that introduce shadowing and diffraction.
+    \item Spatially modulating the internal fill fraction tunes the local effective permittivity while maintaining a flat external profile.
+    \item This continuous tuning enables completely flush-mounted reflectarrays for conformal aerospace applications.
+    \item The process utilizes high-permittivity ceramic filaments and requires programmatic slicer automation \footfullcite{Beccaria2025}.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Reflectarrays: Sub-THz Structures for 6G}
+  \begin{itemize}
+    \item Printed circuit board fabrication tolerances and conductor losses become prohibitive above 100 GHz.
+    \item Spatial feeding in reflectarrays entirely eliminates the lossy corporate feed network.
+    \item All-dielectric unit cells mitigate high-frequency conductor losses.
+    \item This direction establishes the practical upper frequency limits of additive manufacturing for telecommunication systems.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Reflectarrays: Conformal Curved Structures}
+  \begin{itemize}
+    \item Standard planar phase synthesis produces severe beam defocusing when applied to arbitrarily curved surfaces.
+    \item Phase distributions must be recalculated -- to account for local surface normal rotation.
+			\begin{itemize}
+				\item Metasurface with high phase stability is required -- range if incidence angle is larger then in planar arrays
+			\end{itemize}
+		\item Additive manufacturing permits direct fabrication onto pre-shaped (with significant slicer modification) substrates or as free-standing curved structures.
+    \item The large design space necessitates programmatic computer-aided design and surrogate-based optimization algorithms.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Reflectarrays: Integrated Dielectric Rod Feed}
+  \begin{itemize}
+    \item Conventional commercial horn antennas introduce alignment uncertainty and prevent complete system miniaturization.
+    \item A dielectric rod antenna can be printed simultaneously as a vertical protrusion directly from the array surface.
+    \item This monolithic fabrication eliminates alignment variables and reduces overall component costs.
+    \item The fixed focal length demands extreme simulation accuracy prior to the printing process.
+  \end{itemize}
+\end{frame}
+
+\appendix
+\begin{frame}[plain]
+  \frametitle{Bibliography}
+  \section{Bibliography}
+  \changefontsizes{7pt}
+  \printbibliography
+\end{frame}
+
+\end{document}

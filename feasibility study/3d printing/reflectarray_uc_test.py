@@ -27,7 +27,7 @@ MAX_FEATURE_OFFSET = 0.4  # Max size = cell_width - 0.4 mm
 
 
 # "elliptical_pillar", "elliptical_void", "rhombus_pillar", "rhombus_void"
-PILLAR_TYPE = "rhombus_pillar"
+PILLAR_TYPE = "elliptical_void"
 
 
 def lambda0_mm(f_ghz: float) -> float:

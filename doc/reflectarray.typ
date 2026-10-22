@@ -1,7 +1,7 @@
 #import "config.typ": *
 
 #align(center)[
-    #text(size: 18pt, weight: "bold")[Reflectarray with Form-Birefringent Unit Cells] \
+    #text(size: 18pt, weight: "bold")[Reflectarray with LP $->$ CP Polarization Conversion] \
     #text(size: 14pt)[Deepdive on potential thesis topic] \
     #link("https://typst.app/project/wBQGVX8CTMedKqXLVoBbtb")[Online Version]
 ]
@@ -12,7 +12,7 @@
 #outline()
 
 #pagebreak()
-= Reflectarray with Form-Birefringent Unit Cells
+= Reflectarray with LP $->$ CP Polarization Conversion
 This document focuses on a potential topics of reflectarrays with unit cells that exhibit form-birefringerence -- that is they exhibit anisotropic properties. It builds on the general reflectarray and material observations recorded in `reserach.typ` file.
 
 #pagebreak()
@@ -20,12 +20,13 @@ This document focuses on a potential topics of reflectarrays with unit cells tha
 
 == Physical Mechanism
 - Form birefringence creates an anisotropic medium using subwavelength features, so the incident wave does not resolve the individual physical boundaries and instead sees a homogenized anisotropic medium.
-  - This can be achieved either with periodic cutouts or asymmetric voids in a single material, or by combining two or more isotropic materials into a subwavelength grating whose composite response is anisotropic @Isakov2018.
+  - This can be achieved either with asymmetric voids/pillars, or by combining two or more isotropic materials into a subwavelength grating whose composite response is anisotropic @Isakov2018.
   - Effective refractive index differs for electric fields polarized parallel ($n_parallel$) versus perpendicular ($n_perp$) to the structural axis.
 - *Design rule for LP-to-CP conversion:*
   - When a linearly polarized wave is incident at $45 degree$ to the structural axis, its parallel and perpendicular components travel at different phase velocities and emerge with a differential phase delays.
     $ Delta phi = (2 pi f d) / c_0 (n_parallel - n_perp) $
   - Setting $Delta phi = pi / 2$ (quarter-wave retardation) while keeping the two transmitted amplitudes roughly equal (This won't be possible to achieve.) converts the linear input into a circularly polarized output.
+  - This was actually used by @Hao2020 where the unit cell had this anisotropy, however phase shifts was mainly a function of height
 
 == Reflectarray Application
 - Reflectarray can be designed with unit cell that exhibits such anisotropy to have additional function aside from beam focusing
@@ -39,6 +40,9 @@ This document focuses on a potential topics of reflectarrays with unit cells tha
   - What hasn't really been tried is constructing an array of uniform height where the two degrees of freedom (necessary to tune $n_perp$ and $n_parallel$ independently) are achieved in geometry changes in $x$ and $y$ directions
   - Such design could enable easier addition of some covering to make the final reflectarray smooth at the surface futher enhancing it's mechanical properties
   - Or possibly in order to improve printability the unit cell could be inverted -- instead of elliptical cutouts printing elliptical pillars.
+- Phase shifting mechanism of the cell will then rely on it operating near resonance
+  - Single resonance can give up to 360 degrees of phase change.
+  - Due to Form Form-Birefringence the resonance will be slightly shifted between two axis.
 
 == Geometry
 
