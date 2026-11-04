@@ -1,4 +1,4 @@
-function [theta_star, phi_major, phi_minor, resid] = principal_phases(Sxx, Syy, Sxy, Syx)
+function [theta_star, phi_major, phi_minor, mag_major, mag_minor, resid] = principal_phases(Sxx, Syy, Sxy, Syx)
 % principal_phases  Rotate a 2x2 reflection matrix to its eigenbasis.
 %   S is given in the x/y basis; the congruence transform R*S*R.' diagonalises it.
 %   Returns the angle of best decorrelation, the two principal-axis phases (deg),
@@ -27,4 +27,6 @@ function [theta_star, phi_major, phi_minor, resid] = principal_phases(Sxx, Syy, 
     resid     = best_resid;
     phi_major = angle(Rp_best(1,1)) * 180/pi;
     phi_minor = angle(Rp_best(2,2)) * 180/pi;
+    mag_major = abs(Rp_best(1,1));
+    mag_minor = abs(Rp_best(2,2));
 end

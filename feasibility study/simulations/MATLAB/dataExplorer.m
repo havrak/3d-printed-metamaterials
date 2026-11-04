@@ -1,7 +1,7 @@
 % ---- Question A: phase range on the major axis for different pillar heights ----
 function dataExplorer()
 
-dirpath = '../data/void';   % <-- edit
+dirpath = '../data/pillar/later_simulations';   % <-- edit
 f0      = 30;                   % GHz
 lambda0 = 300/f0;               % mm
 clearance = 0.2;                % mm - Clearance around geometrical feature
@@ -20,23 +20,24 @@ params = all_params(cellfun(@(p) has_field(cfg, p), all_params));
 
 S = build_struct(cfg, params, lambda0, clearance);
 
-% ----------  GUI  ------------------------------------
+% ---- figure + root grid -----------------------------------------
 fig = uifigure('Name', 'Question Ay - phase explorer', ...
-    'Position', [100 100 1150 680]);
+    'Position', [100 100 1150 820]);        % taller: three stacked plots
 
-root = uigridlayout(fig, [2 2]);
+root = uigridlayout(fig, [3 2]);
 root.ColumnWidth = {300, '1x'};
-root.RowHeight   = {'1x', 180};      % plot sparse, magnitude strip
+root.RowHeight   = {'3x', '1x', '1x'};      % phase dominant, two thin strips
 root.Padding     = [10 10 10 10];
 root.ColumnSpacing = 10;
+root.RowSpacing    = 6;
 
-% ---- sidebar ----
+% ---- sidebar (spans all three plot rows) ------------------------
 nb = numel(params);
-side = uigridlayout(root, [nb + 6, 3]);
-side.Layout.Row = [1 2];
+side = uigridlayout(root, [nb + 5, 3]);     % nb params + 4 controls + textarea
+side.Layout.Row = [1 3];                    % <-- was [1 2]
 side.Layout.Column = 1;
 side.ColumnWidth = {70, '1x', 45};
-side.RowHeight = [repmat({70}, 1, nb), {30, 30, 30, 30, '1x'}];
+side.RowHeight   = [repmat({70}, 1, nb), {30, 30, 30, 30, '1x'}];
 side.Padding     = [0 0 0 0];
 side.RowSpacing  = 6;
 
@@ -58,7 +59,7 @@ for k = 1:nb
     controls.(p).fix.Layout.Row = k;  controls.(p).fix.Layout.Column = 3;
 end
 
-% ---- checkboxes ----
+% ---- checkboxes -------------------------------------------------
 controls.showMinor = uicheckbox(side, ...
     'Text', 'Show minor axis', ...
     'Value', 1, 'ValueChangedFcn', @(~,~) refreshWrapper());
@@ -71,7 +72,7 @@ controls.zeroPhase = uicheckbox(side, ...
 controls.zeroPhase.Layout.Row = nb + 2;
 controls.zeroPhase.Layout.Column = [1 3];
 
-% ---- buttons (below the checkboxes) ----
+% ---- buttons ----------------------------------------------------
 btn = uibutton(side, 'Text', 'Refresh / print stats', ...
     'ButtonPushedFcn', @(~,~) refreshWrapper());
 btn.Layout.Row = nb + 3;
@@ -82,7 +83,7 @@ btnExport = uibutton(side, 'Text', 'Export figures', ...
 btnExport.Layout.Row = nb + 4;
 btnExport.Layout.Column = [1 3];
 
-% ---- text area (takes remaining height) ----
+% ---- text area (absorbs remaining sidebar height) ----------------
 txt = uitextarea(side, ...
     'Editable', 'off', ...
     'FontName', 'Consolas', ...
@@ -91,7 +92,7 @@ txt = uitextarea(side, ...
 txt.Layout.Row = nb + 5;
 txt.Layout.Column = [1 3];
 
-% ---- plot ----
+% ---- three stacked plots ----------------------------------------
 ax = uiaxes(root);
 ax.Layout.Row = 1;  ax.Layout.Column = 2;
 xlabel(ax, 'a (mm)'); ylabel(ax, 'Phase delay (deg)');
@@ -102,8 +103,14 @@ axm.Layout.Row = 2; axm.Layout.Column = 2;
 xlabel(axm, 'a (mm)'); ylabel(axm, '|S| (dB)');
 title(axm, 'Reflected magnitude'); grid(axm, 'on'); hold(axm, 'on');
 
+axr = uiaxes(root);
+axr.Layout.Row = 3; axr.Layout.Column = 2;
+xlabel(axr, 'a (mm)'); ylabel(axr, 'residual (dB)');
+title(axr, 'Residual (eigenbasis validity)'); grid(axr, 'on'); hold(axr, 'on');
+
 lastPlot = struct('aa', {}, 'pm', {}, 'pn', {}, 'mm', {}, 'mn', {}, ...
-    'lbl', {}, 'keep', {});
+    'rs', {}, 'lbl', {}, 'keep', {});
+
 
 drawnow;
 
@@ -175,10 +182,24 @@ refreshWrapper();
         end
         fprintf('refresh: starting plotting\n');
         % ----------  draw  ----------
-        cla(ax);  hold(ax, 'on');
-        cla(axm); hold(axm, 'on');
-        colors = lines(max(numel(groups), 1));
-        stats = [];
+        delete(allchild(ax));
+        delete(allchild(axm));
+        delete(allchild(axr));
+        legend(ax,  'off');
+        legend(axm, 'off');
+        legend(axr, 'off');
+
+        hold(ax,  'on');
+        hold(axm, 'on');
+        hold(axr, 'on');
+
+        lastPlot = struct('aa', {}, 'pm', {}, 'pn', {}, 'mm', {}, 'mn', {}, ...
+            'rs', {}, 'lbl', {}, 'keep', {});
+        stats   = [];
+        colors  = lines(max(numel(groups), 1));
+        xminAll = inf;  xmaxAll = -inf;
+
+        yline(axm, mag_floor_dB, '--', 'floor', 'HandleVisibility', 'off');
 
         for g = 1:numel(groups)
             idx = groups{g};
@@ -191,13 +212,16 @@ refreshWrapper();
             mag_minor = S.mag_minor(idx);
             resid     = S.resid(idx);
 
+
+            xminAll = min(xminAll, min(aa));
+            xmaxAll = max(xmaxAll, max(aa));
+
             % wrapped copy for the mask / arc statistics (wrap-safe)
             phi_major_w = mod(phi_major, 360);
 
-            % unwrapped copy for display, referenced to first point -> 0
+            % unwrapped copy for display
             pm_u = unwrap(deg2rad(phi_major)) * 180/pi;
             pn_u = unwrap(deg2rad(phi_minor)) * 180/pi;
-
             if get(controls.zeroPhase, 'Value')
                 pm_u = pm_u - pm_u(1);
                 pn_u = pn_u - pn_u(1);
@@ -206,54 +230,62 @@ refreshWrapper();
             keep = usable_mask(aa, phi_major_w, mag_major, resid, ...
                 mag_floor_dB, slope_max, resid_max);
 
-            mag_major_dB = 20*log10(mag_major);
-            mag_minor_dB = 20*log10(mag_minor);
+            mag_major_dB = 20*log10(max(mag_major, eps));
+            mag_minor_dB = 20*log10(max(mag_minor, eps));
+            resid_dB     = 20*log10(max(resid,     eps));
 
-            % magnitude (always, same axes)
-            plot(axm, aa, mag_major_dB, '-o', 'Color', colors(g,:), ...
-                'LineWidth', 1.2, 'DisplayName', glabel{g});
+            single = (numel(groups) == 1) && get(controls.showMinor, 'Value');
 
-
-            if numel(groups) == 1 && get(controls.showMinor, 'Value')
-                % single-curve view: major + minor, legend inside (no width steal)
-                plot(ax, aa, pm_u, '-o', 'Color', colors(g,:), ...
-                    'LineWidth', 1.3, 'DisplayName', 'major');
+            % ---- phase ----
+            plot(ax, aa, pm_u, '-o', 'Color', colors(g,:), ...
+                'LineWidth', 1.3, 'DisplayName', glabel{g});
+            if single
                 plot(ax, aa, pn_u, '-s', 'Color', [0.6 0.6 0.6], ...
                     'LineWidth', 1.1, 'DisplayName', 'minor');
-                legend(ax, 'Location', 'southwest');
+            end
+            plot(ax, aa(keep), pm_u(keep), 'o', 'MarkerSize', 8, ...
+                'MarkerEdgeColor', 'r', 'HandleVisibility', 'off');
+
+            % ---- magnitude ----
+            plot(axm, aa, mag_major_dB, '-o', 'Color', colors(g,:), ...
+                'LineWidth', 1.2, 'DisplayName', glabel{g});
+            if single
                 plot(axm, aa, mag_minor_dB, '-s', 'Color', [0.6 0.6 0.6], ...
                     'LineWidth', 1.1, 'DisplayName', 'minor');
-                % legend(axm, 'Location', 'best');
-            else
-                % multi-curve view: major only
-                plot(ax, aa, pm_u, '-o', 'Color', colors(g,:), ...
-                    'LineWidth', 1.2, 'DisplayName', glabel{g});
             end
 
+            % ---- residual (always visible, never hidden) ----
+            plot(axr, aa, resid_dB, '-d', 'Color', colors(g,:), ...
+                'LineWidth', 1.2, 'DisplayName', glabel{g});
+
+            % ---- export cache ----
             lastPlot(g).aa   = aa;
             lastPlot(g).pm   = pm_u;
             lastPlot(g).pn   = pn_u;
             lastPlot(g).mm   = mag_major_dB;
             lastPlot(g).mn   = mag_minor_dB;
+            lastPlot(g).rs   = resid_dB;
             lastPlot(g).keep = keep;
             lastPlot(g).lbl  = glabel{g};
 
-            % usable points marked at unwrapped coordinates
-            plot(ax, aa(keep), pm_u(keep), 'o', 'MarkerSize', 8, ...
-                'MarkerEdgeColor', 'r');
-
             [arc, lo, hi, run_txt] = largest_usable_run(aa, phi_major_w, keep);
             stats(end+1, :) = [g, arc, lo, hi, ...
-                mean(phi_minor(keep) - phi_major(keep))]; %#ok<AGROW>
+                mean(mod(phi_minor(keep) - phi_major(keep), 360))]; %#ok<AGROW>
         end
 
-        if numel(groups) > 1 && get(controls.showMinor, 'Value')
-            lg = legend(ax, 'Location', 'southwest');
-            lg.Interpreter = 'none';
+        % ---- decorations, applied once after all groups ----
+        if isfinite(xminAll) && isfinite(xmaxAll)
+            xlim(ax,  [xminAll xmaxAll]);
+            xlim(axm, [xminAll xmaxAll]);
+            xlim(axr, [xminAll xmaxAll]);
         end
-        xlim(ax, [min(aa), max(aa)]);
-        yline(axm, mag_floor_dB, '--', 'floor');
-        title(ax, 'Phase vs a  (black circles = usable points)');
+
+
+        lg = legend(ax,  'Location', 'southwest'); lg.Interpreter = 'none';
+        lg = legend(axm, 'Location', 'southwest'); lg.Interpreter = 'none';
+        lg = legend(axr, 'Location', 'northwest'); lg.Interpreter = 'none';
+
+        title(ax, 'Phase vs a  (red circles = usable points)');
 
         % ----------  statistics (text area + console)  ----------
 
@@ -458,6 +490,7 @@ for k = 1:numel(params)
     S.(params{k}) = [cfg.(params{k})].';
 end
 
+S.theta_star = zeros(numel(cfg),1);
 S.phi_major = zeros(numel(cfg),1);
 S.phi_minor = zeros(numel(cfg),1);
 S.resid     = zeros(numel(cfg),1);
@@ -465,12 +498,13 @@ S.mag_major = zeros(numel(cfg),1);
 S.mag_minor = zeros(numel(cfg),1);
 fprintf('build_struct: executing matrix rotation\n');
 for i = 1:numel(cfg)
-    [theta_star, pm, pn, rs] = principal_phases(cfg(i).S11, cfg(i).S22, cfg(i).S12, cfg(i).S21);
+    [theta_star, pm, pn, mm, mn, rs] = principal_phases(cfg(i).S11, cfg(i).S22, cfg(i).S12, cfg(i).S21);
+    S.theta_star(i) = theta_star;
     S.phi_major(i) = pm;
     S.phi_minor(i) = pn;
     S.resid(i)     = rs;
-    S.mag_major(i) = abs(cfg(i).S11);
-    S.mag_minor(i) = abs(cfg(i).S22);
+    S.mag_major(i) = mm;
+    S.mag_minor(i) = mn;
     % disp(theta_star); % for our UC this should be at 45 degrees
 end
 
