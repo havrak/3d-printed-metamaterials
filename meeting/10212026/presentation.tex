@@ -42,7 +42,7 @@
 \hypersetup{breaklinks=true}
 
 \title{LP $\Rightarrow$ CP 3D Printed Reflectarray}
-\subtitle{Prepared for meeting on 10.22.2026}
+\subtitle{Prepared for meeting on 11.3.2026}
 \author{Havránek Kryštof}
 \date{}
 \institute{CTU, NTUST}
@@ -208,7 +208,7 @@
 
 % =====================================================================
 \begin{frame}[fragile]
-  \frametitle{Unit Cell Design --- Prior Art}
+  \frametitle{Unit Cell Design --- Existing Studies}
   \begin{center}
     \includegraphics[width=0.4\textwidth]{./img/hao.jpg}
   \end{center}
@@ -224,7 +224,7 @@
 \end{frame}
 
 \begin{frame}[fragile]
-  \frametitle{Unit Cell Design --- Prior Art}
+  \frametitle{Unit Cell Design --- Existing Studies}
   \begin{center}
     \includegraphics[width=0.2\textwidth]{./img/cheng.jpg}
   \end{center}
@@ -285,7 +285,7 @@
 
 
 
-\section{feasibility Study}
+\section{Feasibility Study}
 
 % =====================================================================
 \begin{frame}[fragile]
@@ -342,15 +342,12 @@
         5               & 0.4                & 5                        & 293.3                  \\
         5               & 0.5                & 5                        & 301.7                  \\
         6               & 0.5                & 4.2                      & 325.2                  \\
-
-
         \hline
       \end{tabular}
     \end{center}
   \end{table}
   \begin{itemize}
-    \item for $P_\mathrm{ratio} = 0.5$ when $\varepsilon_r = 6$ there are resonance within feasible range of $a$.
-    \item $P_\mathrm{ratio} = 0.3$ doesn't bring interesting results.
+    \item $P_\mathrm{ratio} = 0.5$, $\varepsilon_r > 6$ $\Rightarrow$  resonance within feasible range of $a$.
   \end{itemize}
 
 \end{frame}
@@ -434,7 +431,7 @@
         \item Each added resonance sharpens the phase slope, trading \textbf{bandwidth} for range.
         \item Limited by printer resolution.
       \end{itemize}
-    \item \textbf{3 parameters:} (\verb|a|, \verb|ratio|, \verb|H_pillar|) design is more complicated $\Rightarrow$ MLP based surrogate model + NGSA-II to find optimal solutions if the behavior isn't nice.
+    \item \textbf{3 parameters:} (\verb|a|, \verb|ratio|, \verb|H_pillar|) design is more complicated $\Rightarrow$ MLP based surrogate model + NSGA-II to find optimal solutions if the behavior isn't nice.
   \end{itemize}
 \end{frame}
 
