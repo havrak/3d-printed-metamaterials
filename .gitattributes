@@ -1,0 +1,33 @@
+# Normalise line endings in the repository to LF.
+* text=auto eol=lf
+
+# Binary — never touch these, never diff them
+*.mat   binary
+*.cst   binary
+*.cstpart binary
+*.mod   binary
+*.par   binary
+*.h5    binary
+*.hdf5  binary
+*.npy   binary
+*.npz   binary
+*.pkl   binary
+*.pdf   binary
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.zip   binary
+*.7z    binary
+*.exe   binary
+*.dll   binary
+
+# MATLAB: text, but MATLAB on Windows is fine with LF.
+*.m     text eol=lf
+*.py    text eol=lf
+*.tex   text eol=lf
+*.bib   text eol=lf
+*.typ   text eol=lf
+*.md    text eol=lf
+*.json  text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
