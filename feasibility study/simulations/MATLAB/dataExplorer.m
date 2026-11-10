@@ -7,7 +7,7 @@ lambda0 = 300/f0;               % mm
 clearance = 0.2;                % mm - Clearance around geometrical feature
 
 mag_floor_dB = -1.0;             % |S| floor for usable points
-slope_max    = 400;              % deg/mm slope guard (resonance)
+slope_max    = 500;              % deg/mm slope guard (resonance)
 resid_max    = 0.05;             % eigenbasis validity
 
 cfg = load_touchstone_tree(dirpath, f0);        % new(dirpath, f0);
@@ -19,6 +19,7 @@ params = all_params(cellfun(@(p) has_field(cfg, p), all_params));
 
 
 S = build_struct(cfg, params, lambda0, clearance);
+fprintf("dataExplored: starting GUI creation");
 
 % ---- figure + root grid -----------------------------------------
 fig = uifigure('Name', 'Question Ay - phase explorer', ...
@@ -105,14 +106,17 @@ title(axm, 'Reflected magnitude'); grid(axm, 'on'); hold(axm, 'on');
 
 axr = uiaxes(root);
 axr.Layout.Row = 3; axr.Layout.Column = 2;
-xlabel(axr, 'a (mm)'); ylabel(axr, 'residual (dB)');
-title(axr, 'Residual (eigenbasis validity)'); grid(axr, 'on'); hold(axr, 'on');
+xlabel(axr, 'a (mm)'); ylabel(axr, '\Delta\phi = \phi_{minor} - \phi_{major} (deg)');
+title(axr, 'Phase difference vs a'); grid(axr, 'on'); hold(axr, 'on');
 
 lastPlot = struct('aa', {}, 'pm', {}, 'pn', {}, 'mm', {}, 'mn', {}, ...
     'rs', {}, 'lbl', {}, 'keep', {});
 
 
+
+fprintf("dataExplorer: calling drawnow");
 drawnow;
+fprintf("dataExplorer: finished drawnow");
 
 refreshWrapper();
 
@@ -194,12 +198,14 @@ refreshWrapper();
         hold(axr, 'on');
 
         lastPlot = struct('aa', {}, 'pm', {}, 'pn', {}, 'mm', {}, 'mn', {}, ...
-            'rs', {}, 'lbl', {}, 'keep', {});
+            'rs', {}, 'dp', {}, 'lbl', {}, 'keep', {});
         stats   = [];
         colors  = lines(max(numel(groups), 1));
         xminAll = inf;  xmaxAll = -inf;
+        residWorst = -inf;
 
         yline(axm, mag_floor_dB, '--', 'floor', 'HandleVisibility', 'off');
+        yline(axr, 90, '--', 'target 90 deg', 'HandleVisibility', 'off');
 
         for g = 1:numel(groups)
             idx = groups{g};
@@ -254,9 +260,16 @@ refreshWrapper();
                     'LineWidth', 1.1, 'DisplayName', 'minor');
             end
 
-            % ---- residual (always visible, never hidden) ----
-            plot(axr, aa, resid_dB, '-d', 'Color', colors(g,:), ...
+            % ---- phase difference vs a ----
+            % Shared x-axis with the panels above, so the geometry where the
+            % quadrature condition occurs is read off directly.  Note dphi is
+            % not monotonic in 'a' (it peaks then falls), which the locus
+            % representation would have hidden by retracing itself.
+            dphi_mod = mod(phi_minor - phi_major, 360);
+            plot(axr, aa, dphi_mod, '-d', 'Color', colors(g,:), ...
                 'LineWidth', 1.2, 'DisplayName', glabel{g});
+            plot(axr, aa(keep), dphi_mod(keep), 'o', 'MarkerSize', 7, ...
+                'MarkerEdgeColor', 'r', 'HandleVisibility', 'off');
 
             % ---- export cache ----
             lastPlot(g).aa   = aa;
@@ -265,8 +278,12 @@ refreshWrapper();
             lastPlot(g).mm   = mag_major_dB;
             lastPlot(g).mn   = mag_minor_dB;
             lastPlot(g).rs   = resid_dB;
+            lastPlot(g).dp   = dphi_mod;
             lastPlot(g).keep = keep;
             lastPlot(g).lbl  = glabel{g};
+
+            % track the worst eigenbasis residual for the text-area warning
+            residWorst = max(residWorst, 20*log10(max(max(resid), eps)));
 
             [arc, lo, hi, run_txt] = largest_usable_run(aa, phi_major_w, keep);
             stats(end+1, :) = [g, arc, lo, hi, ...
@@ -279,7 +296,7 @@ refreshWrapper();
             xlim(axm, [xminAll xmaxAll]);
             xlim(axr, [xminAll xmaxAll]);
         end
-
+        ylim(axr, [0 360]);
 
         lg = legend(ax,  'Location', 'southwest'); lg.Interpreter = 'none';
         lg = legend(axm, 'Location', 'southwest'); lg.Interpreter = 'none';
@@ -339,6 +356,19 @@ refreshWrapper();
             end
         else
             statsConsoleText{end+1} = '(no usable data)';
+        end
+
+        % ---- eigenbasis validation warning ----
+        % principal_phases() only separates the two axes cleanly when the
+        % rotated 2x2 matrix diagonalises; a large residual means the 45 deg
+        % basis is wrong for these points and their phases should be distrusted.
+        resid_warn_dB = -60; 
+        if residWorst > resid_warn_dB
+            statsConsoleText{end+1} = '';
+            statsConsoleText{end+1} = sprintf( ...
+                'WARNING: eigenbasis residual reaches %.0f dB (limit %.0f dB)', ...
+                residWorst, resid_warn_dB);
+            statsConsoleText{end+1} = '  Phases at those points are unreliable.';
         end
 
         txt.Value = statsConsoleText;

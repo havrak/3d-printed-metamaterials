@@ -9,7 +9,7 @@ function cfg = load_touchstone_dir(dirpath, f0)
     assert(~isempty(files), 'No .s2p files found in %s', dirpath);
 
     % ---- locate the result-navigator CSV ---------------------------------
-    csvFiles = dir(fullfile(dirpath, '*Result*Navigator*.csv'));
+    csvFiles = dir(fullfile(dirpath, 'result_navigator.csv'));
     if isempty(csvFiles)
         csvFiles = dir(fullfile(dirpath, '*.csv'));   % looser match
     end
@@ -53,14 +53,21 @@ function cfg = load_touchstone_dir(dirpath, f0)
         [f, S] = read_s2p(fpath);
 
         % ---- legacy header fallback if CSV gave nothing ------------------
-        if any(isnan([a Hp ratio er Pr]))
-            [a2, Hp2, ratio2, er2, Pr2] = read_header(fpath, f0);
-            a     = fillnan(a, a2);
-            Hp    = fillnan(Hp, Hp2);
-            ratio = fillnan(ratio, ratio2);
-            er    = fillnan(er, er2);
-            Pr    = fillnan(Pr, Pr2);
-        end
+        % Only touch the header when the CSV could not supply every field.
+        % Reading every file's header costs one fopen per configuration and
+        % is what exhausts the OS file-handle limit on large sweeps.
+        assert(all(~isnan([a Hp ratio er Pr])), 'Missing a values - dataset not fully annotated');
+        
+        % if any(isnan([a Hp ratio er Pr]))
+        %     disp("There is a problem, not all files are annotated reading headers");
+        % 
+        %     [a2, Hp2, ratio2, er2, Pr2] = read_header(fpath, f0);
+        %     a     = fillnan(a, a2);
+        %     Hp    = fillnan(Hp, Hp2);
+        %     ratio = fillnan(ratio, ratio2);
+        %     er    = fillnan(er, er2);
+        %     Pr    = fillnan(Pr, Pr2);
+        % end
 
         [~, kk] = min(abs(f - f0));
         Sv = S(kk, :);
@@ -194,8 +201,18 @@ end
 
 function [f, S] = read_s2p(fpath)
 % read_s2p  Read magnitude-angle .s2p, return freq vector and Nx4 complex S.
-    fid = fopen(fpath, 'r');
+%   The handle is released via onCleanup, so it is closed even if parsing
+%   fails part-way through (a leaked handle per file exhausts the OS limit
+%   on large sweeps).  onCleanup is the *only* close: calling fclose
+%   explicitly as well would leave the destructor closing a dead handle.
     f = []; S = [];
+
+    fid = fopen(fpath, 'r');
+    if fid < 0
+        error('read_s2p:cannotOpen', 'Cannot open %s', fpath);
+    end
+    onCleanup(@() fclose(fid));
+
     while true
         line = fgetl(fid);
         if ~ischar(line), break; end
@@ -205,26 +222,64 @@ function [f, S] = read_s2p(fpath)
         end
         vals = sscanf(tline, '%f');
         if numel(vals) >= 9
-            f(end+1,1) = vals(1);            %#ok<AGROW>
+            f(end+1,1) = vals(1);
             S11 = vals(2) * exp(1i*deg2rad(vals(3)));
             S21 = vals(4) * exp(1i*deg2rad(vals(5)));
             S12 = vals(6) * exp(1i*deg2rad(vals(7)));
             S22 = vals(8) * exp(1i*deg2rad(vals(9)));
-            S(end+1,:) = [S11, S21, S12, S22];  %#ok<AGROW>
+            S(end+1,:) = [S11, S21, S12, S22];
         end
     end
-    fclose(fid);
 end
 
 function [a, Hp, ratio, er, Pr] = read_header(fpath, f0)
+% read_header  Legacy fallback: read parameters from the ".s2p" header line
+%   "! Parameters = {H_base=0.6; H_pillar=6; b=1.65; ratio=2; a=3.3; ...}"
+%   Only used when the result-navigator CSV is missing or incomplete.
+%   Always closes the file handle, including on early return.
     a = NaN; Hp = NaN; ratio = NaN; er = NaN; Pr = NaN;
+
     fid = fopen(fpath, 'r');
+    if fid < 0
+        return
+    end
+    onCleanup(@() fclose(fid));
+
     while true
         line = fgetl(fid);
         if ~ischar(line), break; end
         tline = strtrim(line);
+
         if startsWith(tline, '! Parameters')
+            body = regexp(tline, 'Parameters\s*=\s*\{([^}]*)\}', 'tokens', 'once');
+            if ~isempty(body)
+                body  = body{1};
+                a     = param_val(body, 'a');
+                Hp    = param_val(body, 'H_pillar');
+                ratio = param_val(body, 'ratio');
+                er    = param_val(body, 'epsilon_r');
+                Pr    = param_val(body, 'P_ratio');
+                if isnan(Pr)
+                    % derive P_ratio from the absolute cell size when the
+                    % header stores P instead of a normalised value
+                    Pmm = param_val(body, 'P');
+                    if ~isnan(Pmm) && f0 > 0
+                        Pr = Pmm / (299.792458 / f0);
+                    end
+                end
+            end
+            break
         end
+    end
+end
+
+function v = param_val(body, name)
+% param_val  Extract one numeric value from the header parameter string.
+    tok = regexp(body, ['(^|;)\s*' name '\s*=\s*([0-9eE.+\-]+)'], 'tokens', 'once');
+    if isempty(tok)
+        v = NaN;
+    else
+        v = str2double(tok{2});
     end
 end
 
