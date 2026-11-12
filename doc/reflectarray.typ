@@ -326,6 +326,74 @@ for i in range(phases_x.shape[1]):
 
 
 #pagebreak()
+= Surrogate Model
+
+== Why a Surrogate Is Needed
+- The feasibility study establishes that the phase behaviour of the elliptical pillar cannot be predicted analytically. There is no closed-form solution for a truncated elliptical dielectric resonator on a grounded substrate, and the elliptic-cylinder harmonics that exist do not survive truncation in height plus the ground plane.
+- At the same time the design problem is not a single evaluation but a search. Each element of the final reflectarray needs a geometry that realises its own required phase, and the array contains hundreds of elements. On top of that the geometry has to be chosen such that the $90 degree$ inter-axis offset is preserved across the whole phase range.
+- Evaluating that by full-wave simulation is not viable: a single CST solve costs minutes, the design space spans five parameters, and the search would have to be repeated for every element of every candidate array.
+- A surrogate model replaces the full-wave solve with a cheap regression that maps geometry to response, so that the search runs on the model and only the final candidates are verified in CST. This is the standard role of surrogate modelling in simulation-driven design @Forrester2008.
+
+== Requirements on the Model
+- The model must predict two quantities per configuration: the phase delay along each principal axis, and the phase difference between them.
+- Phase must not be regressed directly. It wraps at $360 degree$, so identical geometries would map to both $0 degree$ and $360 degree$ and any regressor would average them toward $180 degree$ at every wrap boundary. Adding more data does not fix this; it makes the model more confidently wrong.
+- The model therefore predicts the four components of the two complex principal reflection coefficients:
+  $ bold(R)_"major" = a + j b, quad bold(R)_"minor" = c + j d $
+  from which every quantity of interest is derived:
+  $ phi_"major" = angle(R_"major"), quad Delta phi = angle(R_"minor" dot R_"major"^* ) $
+  This is continuous through resonance, bounded by $|R| <= 1$ for a passive structure, and makes $Delta phi$ a derived quantity rather than a second independent target.
+
+== Why Polynomial Response Surfaces Were Discarded
+- A polynomial response surface is a global low-order fit $y = bold(X) beta$, attractive because it has no hyperparameters and is fitted by a single linear solve.
+- It is inappropriate here because the response is dominated by a resonance. Near resonance the phase slope reaches several hundred degrees per millimetre of geometry, so a low-order polynomial cannot represent the curve at all.
+- Raising the order to capture the resonance makes the number of basis terms grow combinatorially in five dimensions. The data requirement then becomes larger than the full-factorial sweep the surrogate was meant to avoid, which defeats the purpose.
+- The polynomial is therefore kept only as a baseline check, not as the production model.
+
+== Why Gaussian Processes Were Discarded
+- A Gaussian process was the natural alternative: it gives a posterior variance for free, which is the correct confidence interval, and it is designed for small sample sizes.
+- Two reasons ruled it out.
+  - *Multiple independent models.* A GP regresses one scalar output at a time, so four complex components require four independent GPs. Each fits its own length scales, the four can disagree with each other, and each can independently violate $|R| <= 1$. There is no shared representation, even though the major and minor axes are the same physics seen from two directions.
+  - *Sample efficiency is not the binding constraint.* The main advantage of a GP is that it works with a few dozen samples. Here the CST sweep can be run repeatedly overnight and produces on the order of $10^4$ configurations, so that advantage is not needed. At that sample count a neural network matches or exceeds a GP while training faster per sample.
+- The Gaussian process is therefore not used.
+
+== Multi-Layer Perceptron
+- The chosen model is a single multi-layer perceptron with one shared latent representation and four outputs, which resolves the multi-model objection directly: one training run, one set of hyperparameters, and a network that learns the coupling between the two axes.
+- *Inputs* are physically derived features rather than raw geometry. The raw parameters $(a, "ratio", P_"ratio", epsilon_r, H_"pillar")$ are a poor coordinate system because they do not scale with frequency and do not expose the physics. The features are normalised so that the $30$ to $15$~GHz frequency scaling leaves them invariant:
+  - Fill fraction $f = pi a b \/ P^2$, which sets the effective permittivity of the cell.
+  - Electrical pillar height $(H_"pillar" \/ lambda_0) sqrt(epsilon_r)$ and the same for the base layer.
+  - Anisotropy strength $ln(a \/ b)$.
+  - Ellipsoidal effective-medium permittivities along the major and minor axes, obtained from the depolarisation factors of a prolate spheroid combined with a Maxwell-Garnett mixing rule. This yields the two separated resonances analytically.
+  - Distance to resonance $f_0 \/ f_"res"$ for each axis, and the resonance separation, since proximity to resonance is the dominant driver of phase slope.
+- *Outputs* are the real and imaginary parts of both principal reflection coefficients, as above.
+- *Loss* combines a mean-squared error on the four components with a passivity penalty $ "mean"( "relu"(|R| - 1)^2 )$, which guarantees the surrogate never predicts gain, a failure mode a plain regression can exhibit near resonance.
+- *Hyperparameters* (depth, width, activation, learning rate, regularisation) are tuned with Optuna @Akiba2019, which uses a define-by-run search space and pruning of unpromising trials.
+- *Sampling* for additional training points uses a Sobol sequence rather than a full grid. In five dimensions a grid of five values per axis already needs $5^5 = 3125$ runs and leaves the space between lattice lines unsampled, which is exactly where the resonance sits. A Sobol sequence is nested, so successive overnight batches accumulate into a well-spread design rather than wasting earlier runs.
+- Every candidate the surrogate proposes is verified by a full CST simulation before it is accepted. The surrogate therefore only needs to rank candidates correctly, not to be accurate in absolute terms.
+
+== Uncertainty Quantification
+- Two different uncertainties are needed, and they are not interchangeable.
+  - *Generalisation error* answers how accurate the model is overall. It is estimated by $k$-fold cross-validation: the data are split into $k = 5$ folds, the model is trained $k$ times with one fold held out each time, and the spread of the held-out error across folds gives the variance of the performance estimate.
+  - *Per-prediction uncertainty* answers how far a single prediction can be trusted. Cross-validation cannot supply this, because it says nothing about any individual input.
+- For design work the second is the one that matters: the surrogate has to indicate which regions of the parameter space it has not learned, so that unverified proposals are not trusted and new simulations are directed where they are most informative.
+- The method used is a *deep ensemble*: $M = 5$ networks trained from independent random initialisations with independently shuffled data ordering, so that the ensemble members differ only in their starting point and the order in which they see the same data.
+  $ mu(bold(x)) = 1/M sum_(m=1)^M f_m (bold(x)), quad sigma^2 (bold(x)) = 1/M sum_(m=1)^M (f_m (bold(x)) - mu (bold(x)))^2 $
+  This gives an epistemic uncertainty: it is small where the training data are dense and large where the model is extrapolating, which is exactly the behaviour required for active learning. It is preferred over Monte-Carlo dropout, which is cheaper but tends to produce overconfident intervals, and over a variational Bayesian network, whose tuning cost is not justified at this scale.
+- The uncertainty is propagated through the nonlinearity rather than approximated. Since the design quantity is $Delta phi$, which is a function of all four predicted components, the ensemble spread is taken over $Delta phi$ computed from each member:
+  $ sigma_(Delta phi) (bold(x)) = "std"_m [ angle(R_"minor"^((m)) dot R_"major"^((m))^* ) ] $
+  rather than by linear propagation of the per-component variances.
+- The intervals are validated by a *calibration* check: predictions are binned by predicted $sigma$, and for each bin the fraction of true values falling within $plus.minus 1.96 sigma$ is compared with the nominal $95 thin %$. Systematic under-coverage would indicate overconfident intervals and require recalibration before the uncertainty is used to guide sampling.
+
+== Physics-Informed Neural Networks
+- A physics-informed neural network (PINN) embeds the residual of a governing differential equation in the training loss @Raissi2019:
+  $ cal(L) = cal(L)_"data" + lambda cal(L)_"PDE" $
+  where $cal(L)_"PDE"$ penalises violation of the PDE at collocation points, evaluated by differentiating the network output with respect to its spatial or temporal coordinates.
+- *This formulation does not apply to the present problem.* The network here maps design parameters to a response, $ (a, "ratio", epsilon_r, H) |-> bold(R) $. There are no spatial coordinates in the input, so there is no differential operator to apply and $cal(L)_"PDE"$ is undefined. Writing Maxwell's equations in terms of $diff bold(R) \/ diff a$ is not a physics residual.
+- The distinction is definitional rather than a matter of degree: a model trained purely by supervised learning is not a PINN, regardless of how much physics enters its inputs. The loose reading of the original framework has blurred this.
+- Two further properties of PINNs work against their use here. They are formulated for a single instance of a PDE, that is one set of boundary conditions and material parameters, whereas the requirement is a map over a five-dimensional parameter space. And their training is expensive and sensitive to architecture, sampling and optimisation settings, which would be paid for no benefit.
+- *What is adopted instead* is the approach used in electromagnetic surrogate modelling, where physical consistency comes from the prediction basis rather than from a PDE term. Physics-constrained networks for antenna work predict spherical wave expansion coefficients and scattering parameters with an ordinary network @Jensen2026, and for lossless periodic structures the constraint is imposed by projecting the output onto a manifold that enforces energy conservation @Prehn2026. The analogue here is the pair of measures already described: predicting complex reflection coefficients instead of wrapped phase, and penalising $|R| > 1$ in the loss.
+- A neural operator, which does map between function spaces and generalises across parameters where a PINN does not, would become relevant only if the model were extended from a single frequency to a full frequency sweep. It is not used at present.
+
+#pagebreak()
 
 #v(2em)
 #bibliography("bibliography.bib", style: "ieee")

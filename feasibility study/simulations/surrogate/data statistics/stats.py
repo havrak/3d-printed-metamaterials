@@ -46,6 +46,16 @@ TUNING = "a"
 # produced by different export paths do not split a group.
 VALUE_TOL = 1e-6
 
+# Maximum characters per line in the summary panel. Long per-level value lists
+# are wrapped to this width instead of being truncated with an ellipsis, so the
+# figure never grows past what a page can hold.
+SUMMARY_WRAP_COLS = 78
+
+# Separator printed around each entry of the "largest relative gaps" block, so
+# consecutive configurations are visually distinct now that each spans several
+# short lines.
+LEV_SEP = "-" * 30
+
 # ---- geometry limit -------------------------------------------------------
 #
 # The ellipse major axis is rotated 45 degrees, so its axis-aligned bounding
@@ -379,8 +389,38 @@ def render_tree(leaves: list[Leaf], top: int | None) -> str:
     return "\n".join(out)
 
 
+def _wrap_items(prefix: str, items: list[str], indent: str,
+                width: int = SUMMARY_WRAP_COLS) -> list[str]:
+    """
+    Join comma-separated items onto as many lines as needed.
+
+    The first line starts with `prefix`, continuation lines with `indent`, so a
+    long list stays aligned and nothing is dropped. Wrapping is preferred over
+    an ellipsis because the omitted values are exactly what the reader needs in
+    order to judge whether the dataset covers the parameter space.
+    """
+    if not items:
+        return [prefix.rstrip()]
+
+    lines: list[str] = []
+    current = prefix
+    current_has_item = False
+
+    for item in items:
+        addition = item if not current_has_item else ", " + item
+        if current_has_item and len(current) + len(addition) > width:
+            lines.append(current)
+            current = indent + item
+        else:
+            current += addition
+        current_has_item = True
+
+    lines.append(current)
+    return lines
+
+
 def render_summary(leaves: list[Leaf]) -> str:
-    """Totals and per-level coverage."""
+    """Totals and per-level coverage, wrapped rather than truncated."""
     if not leaves:
         return "no data"
 
@@ -397,10 +437,10 @@ def render_summary(leaves: list[Leaf]) -> str:
 
     for idx, level in enumerate(LEVELS):
         values = sorted({lf.levels[idx] for lf in leaves})
-        shown = ", ".join(_fmt(v) for v in values[:12])
-        if len(values) > 12:
-            shown += f", ... (+{len(values) - 12})"
-        out.append(f"  {level:<10} {len(values):>3} : {shown}")
+        items = [_fmt(v) for v in values]
+        prefix = f"  {level:<10} {len(values):>3} : "
+        indent = " " * len(prefix)
+        out.extend(_wrap_items(prefix, items, indent))
 
     # a-sampling density, which is what matters for surrogate quality
     counts = [lf.n_samples for lf in leaves]
@@ -421,19 +461,28 @@ def render_summary(leaves: list[Leaf]) -> str:
     out.append(f"  sweep ends short of the edge : {len(needs)} of {len(leaves)}")
     out.append(f"  additional runs required     : {extra}")
     if needs:
-        # the widest gaps first, since those distort the surrogate most
+        # widest gaps first, since those distort the surrogate most; every
+        # group is listed so nothing is hidden behind a count
         worst = sorted(
             needs,
             key=lambda lf: (lf.a_limit - lf.a_max) / max(lf.a_limit, 1e-9),
             reverse=True,
-        )[:5]
-        out.append("  largest relative gaps:")
-        for lf in worst:
-            gap = lf.a_limit - lf.a_max
-            pct = 100.0 * gap / lf.a_limit if lf.a_limit else float("nan")
-            level_txt = " ".join(f"{n}={_fmt(v)}" for n, v in zip(LEVELS, lf.levels))
-            out.append(f"    {level_txt}  a_max {lf.a_max:.2f} of "
-                       f"{lf.a_limit:.2f}  ({pct:.0f}% short)")
+        )
+        
+        # out.append("  largest relative gaps:")
+        # for lf in worst:
+        #    gap = lf.a_limit - lf.a_max
+        #    pct = 100.0 * gap / lf.a_limit if lf.a_limit else float("nan")
+        #    # one parameter per line keeps each row short enough to fit the
+        #    # panel without wrapping mid-value
+        #    out.append(f"    {LEV_SEP}")
+        #    for name, value in zip(LEVELS, lf.levels):
+        #        out.append(f"      {name:<10} = {_fmt(value)}")
+        #    out.append(f"      a_max      = {lf.a_max:.2f}")
+        #    out.append(f"      a_lim      = {lf.a_limit:.2f}"
+        #               f"   ({pct:.0f}% short)")
+        #    out.append(f"      {LEV_SEP}")
+        
 
     return "\n".join(out)
 
@@ -460,6 +509,10 @@ def render_image(leaves: list[Leaf], summary: str, out_path: Path) -> bool:
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
         from matplotlib.patches import Rectangle
+        # Keep text as real <text> elements in SVG output so it stays
+        # selectable and copyable. The default ('path') converts glyphs to
+        # outlines, which looks identical but cannot be copied.
+        matplotlib.rcParams["svg.fonttype"] = "none"
     except ImportError:
         return False
 
@@ -467,14 +520,26 @@ def render_image(leaves: list[Leaf], summary: str, out_path: Path) -> bool:
     row_in = 0.155           # physical height of one table row
     font_pt = 6.5            # row font size, constant per row
     head_pt = 7.0
-    left_margin = 0.35
+    # Left margin only needs room for the branch tick, which sits 0.008 axes
+    # units left of x = 0, plus a little breathing space.
+    left_margin = 0.30
     top_margin = 0.45
     bottom_margin = 0.25
-    summary_width = 2.5      # inches reserved for the summary panel
-    table_width = 6.2        # inches for the table columns
+    # The summary is wrapped by render_summary to SUMMARY_WRAP_COLS, so the
+    # panel is sized for that width rather than for the longest raw line. That
+    # keeps the figure bounded no matter how many values a level has.
+    summary_font_pt = 6.5
+    summary_chars = min(
+        max((len(ln) for ln in summary.splitlines()), default=40),
+        SUMMARY_WRAP_COLS,
+    )
+    summary_char_in = 0.60 * (summary_font_pt / 72.0)
+    summary_width = summary_chars * summary_char_in + 0.12
+    table_width = 7.4        # inches for the table columns (12 columns)
+    right_margin = 0.12
 
     n_rows = len(leaves)
-    fig_w = left_margin + table_width + 0.25 + summary_width + 0.25
+    fig_w = left_margin + table_width + 0.25 + summary_width + right_margin
     # one row for the header, one per data row
     fig_h = top_margin + bottom_margin + row_in * (n_rows + 2)
 
@@ -507,13 +572,12 @@ def render_image(leaves: list[Leaf], summary: str, out_path: Path) -> bool:
     # without reading the numbers.
     level_colors = ["#1f4e79", "#2e7d32", "#b8860b", "#8b2c8b"]
     bar_color = "#4a90b8"
-    group_heading = "#d6e4f0"     # header strip above each P_ratio block
 
-    # Very pale tints for the top-level group backgrounds. Each P_ratio block
-    # gets its own hue rather than alternating grey/white, so the background
-    # identifies *which* block you are in, not merely that a block changed.
+    # Very pale tints for the epsilon_r bands. Each permittivity gets its own
+    # hue rather than alternating grey/white, so the background identifies
+    # *which* permittivity you are in, not merely that the group changed.
     # Saturation is kept low so the coloured foreground text stays legible.
-    group_fills = [
+    eps_fills = [
         "#eef3f9",   # pale blue
         "#fdf6e3",   # pale amber
         "#eef7ee",   # pale green
@@ -523,59 +587,120 @@ def render_image(leaves: list[Leaf], summary: str, out_path: Path) -> bool:
     ]
 
     # ---- header ------------------------------------------------------
-    # column x positions as fractions of the table width
-    headers = LEVELS + ["n", "a_max", "a_lim", "new to", "n_new"]
-    col_x = [0.00, 0.10, 0.20, 0.31, 0.41, 0.475, 0.545, 0.615]
-    bar_x0 = 0.66                # left edge of the coverage bar column
-    bar_max_w = 0.13
-    gap_x = 0.86                 # red marker column
+    # Column positions are derived from the character width of each column's
+    # widest content rather than hand-tuned, so a column can never be given
+    # less room than its text needs.
+    #
+    # Layout (12 columns):
+    #   P_ratio | epsilon_r | H_pillar | ratio | n | a_min | a_max | gap
+    #   | a_lim | from | to | n_new         then: samples bar, edge bar
+    headers = LEVELS + [
+        "n", "a_min", "a_max", "gap", "a_lim", "from", "to", "n_new",
+    ]
+
+    # Widest text each column must hold, in characters. Decimals are formatted
+    # to three places, so a value like 3.163 is 5 characters.
+    widths_chars = [
+        8,    # P_ratio   (header)
+        10,    # epsilon_r (header, the longest name)
+        9,    # H_pillar  (header)
+        7,    # ratio     (header)
+        6,    # n         (includes thousands, e.g. 1250)
+        6,    # a_min     0.400
+        6,    # a_max     3.163
+        4,    # gap       header only; the cell holds a marker
+        6,    # a_lim     3.163
+        6,    # from      2.510
+        6,    # to        3.150
+        6,    # n_new     128
+    ]
+    assert len(widths_chars) == len(headers)
+
+    # A monospace glyph at 6.5 pt occupies roughly this fraction of the axes
+    # width. Measured: 6.5 pt ~ 0.090 in per em, monospace advance ~0.60 em.
+    char_frac = 0.60 * (6.5 / 72.0) / table_width
+
+    pad_chars = 1.0     # blank space between columns, in characters
+
+    col_x: list[float] = []
+    x_cursor = 0.0
+    for w in widths_chars:
+        col_x.append(x_cursor)
+        x_cursor += (w + pad_chars) * char_frac
+
+    # Reserve room on the right for the two bars before deciding the layout
+    # fits, so the last columns cannot collide with them.
+    samples_w = 0.075
+    bars_need = 2 * samples_w + 0.020
+
+    if x_cursor + bars_need > 0.99:
+        raise ValueError(
+            f"columns need {x_cursor:.2f} plus {bars_need:.2f} for the bars; "
+            f"widen table_width or drop a column"
+        )
+
+    # x where the red cross is drawn, centred in the gap column
+    gap_x = col_x[headers.index("gap")] + 0.5 * char_frac
+
+    samples_x0 = 0.99 - bars_need          # right-align the bar pair
+    cover_x0 = samples_x0 + samples_w + 0.020
+    cover_w = samples_w
 
     for x, name in zip(col_x, headers):
         ax_table.text(x, 0, name, fontsize=head_pt, fontweight="bold",
-                      family="monospace", va="center")
-    ax_table.text(bar_x0, 0, "edge cover", fontsize=head_pt,
-                  fontweight="bold", family="monospace", va="center")
-    ax_table.text(gap_x, 0, "gap", fontsize=head_pt,
-                  fontweight="bold", family="monospace", va="center")
+                      family="monospace", va="center", zorder=6)
+    ax_table.text(samples_x0, 0, "samples", fontsize=head_pt,
+                  fontweight="bold", family="monospace", va="center", zorder=6)
+    ax_table.text(cover_x0, 0, "edge", fontsize=head_pt,
+                  fontweight="bold", family="monospace", va="center", zorder=6)
 
-    ax_table.plot([0, 1], [0.5, 0.5], color="0.3", linewidth=0.8)
+    # header rule, drawn under the header text
+    ax_table.plot([0, 1], [0.5, 0.5], color="0.3", linewidth=0.8, zorder=6)
 
     n_max = max((lf.n_samples for lf in leaves), default=1)
 
-    # Precompute which rows start a new top-level group, and assign each
-    # block an index so it can be given its own background tint.
+    # ---- background bands keyed on epsilon_r -------------------------
+    # epsilon_r is the parameter with the most distinct values, and it is the
+    # one that most affects whether a configuration is usable at all (it sets
+    # the phase range and the resonator Q). Tinting by epsilon_r therefore
+    # separates the groups a reader actually wants to distinguish; P_ratio has
+    # too few categories to be a useful key.
+    #
+    # A band is a maximal run of consecutive rows sharing one epsilon_r, so
+    # the tint reads as "this stretch of the table is one permittivity" even
+    # when the rows span several P_ratio blocks.
+    eps_idx = LEVELS.index("epsilon_r")
     block_index: list[int] = []
     block = -1
     for r, leaf in enumerate(leaves):
-        if r == 0 or abs(leaf.levels[0] - leaves[r - 1].levels[0]) >= VALUE_TOL:
+        prev_eps = leaves[r - 1].levels[eps_idx] if r else None
+        if r == 0 or abs(leaf.levels[eps_idx] - prev_eps) >= VALUE_TOL:
             block += 1
         block_index.append(block)
 
     # ---- rows --------------------------------------------------------
     prev: tuple[float, ...] | None = None
+    prev_p_ratio: float | None = None
 
     for r, leaf in enumerate(leaves):
         y = r + 1                      # data starts one row below the header
         blk = block_index[r]
-        starts_block = r == 0 or blk != block_index[r - 1]
+        starts_eps_band = r == 0 or blk != block_index[r - 1]
 
-        # background tint for the whole top-level block
+        # background tint for the whole epsilon_r band
         ax_table.add_patch(Rectangle(
             (0, y - 0.5), 1.0, 1.0,
-            facecolor=group_fills[blk % len(group_fills)],
+            facecolor=eps_fills[blk % len(eps_fills)],
             edgecolor="none", zorder=0,
         ))
 
-        if starts_block:
-            # a saturated strip across the first row of the block makes the
-            # boundary unmistakable even in a long scroll
-            ax_table.add_patch(Rectangle(
-                (0, y - 0.5), 1.0, 1.0, facecolor=group_heading,
-                edgecolor="none", zorder=0.5, alpha=0.55,
-            ))
-            if r > 0:
-                ax_table.plot([0, 1], [y - 0.5, y - 0.5],
-                              color="0.35", linewidth=0.9, zorder=1)
+        # a heavier rule where P_ratio changes, since that is now a separate
+        # grouping from the background tint
+        new_p_ratio = (prev_p_ratio is None
+                       or abs(leaf.levels[0] - prev_p_ratio) >= VALUE_TOL)
+        if new_p_ratio and r > 0:
+            ax_table.plot([0, 1], [y - 0.5, y - 0.5],
+                          color="0.30", linewidth=1.0, zorder=1)
 
         # ---- cells ----
         for idx, value in enumerate(leaf.levels):
@@ -600,59 +725,86 @@ def render_image(leaves: list[Leaf], summary: str, out_path: Path) -> bool:
             )
 
         # ---- numeric columns ----
+        # col_x[4:] has eight entries, matching the eight cells from n onwards.
+        # The gap column is a placeholder: its marker is drawn separately.
         limit = leaf.a_limit
         coverage = leaf.a_coverage
         ext = leaf.extension
-        ext_to = f"{ext[1]:.2f}" if ext else "-"
-        ext_n = str(ext[2]) if ext else "-"
+        if ext is None:
+            ext_from = ext_to = ext_n = "-"
+        else:
+            ext_from = f"{ext[0]:.3f}"
+            ext_to = f"{ext[1]:.3f}"
+            ext_n = str(ext[2])
 
-        for x, cell in zip(col_x[4:], [
-            str(leaf.n_samples),
-            f"{leaf.a_max:.2f}",
-            f"{limit:.2f}" if limit == limit else "nan",
-            ext_to,
-            ext_n,
-        ]):
+        numeric = [
+            str(leaf.n_samples),                  # n
+            f"{leaf.a_min:.3f}",                  # a_min
+            f"{leaf.a_max:.3f}",                  # a_max
+            "",                                   # gap: marker, not text
+            f"{limit:.3f}" if limit == limit else "nan",   # a_lim
+            ext_from,                             # from
+            ext_to,                               # to
+            ext_n,                                # n_new
+        ]
+        assert len(col_x[4:]) == len(numeric), (
+            f"numeric cells ({len(numeric)}) do not match columns "
+            f"({len(col_x[4:])})"
+        )
+        for x, cell in zip(col_x[4:], numeric):
+            if not cell:
+                continue
             ax_table.text(x, y, cell, fontsize=font_pt,
                           family="monospace", va="center", zorder=3)
 
-        # ---- edge-coverage bar ----
-        # filled to the fraction of the usable interval that was sampled;
-        # the unfilled remainder is the region the surrogate must extrapolate
-        bar_w = bar_max_w * (coverage if coverage == coverage else 0.0)
-        bar_w = max(0.0, min(bar_w, bar_max_w))
+        # ---- sample-count bar ----
+        # Relative to the densest leaf, so a sparsely sampled group shows as a
+        # short bar. Drawn behind the text.
+        s_w = samples_w * (leaf.n_samples / n_max) if n_max else 0.0
         ax_table.add_patch(Rectangle(
-            (bar_x0, y - 0.28), bar_max_w, 0.56,
-            facecolor="0.90", edgecolor="none", zorder=3,
+            (samples_x0, y - 0.28), samples_w, 0.56,
+            facecolor="white", edgecolor="0.80", linewidth=0.4, zorder=1,
         ))
-        if bar_w > 0:
+        if s_w > 0:
             ax_table.add_patch(Rectangle(
-                (bar_x0, y - 0.28), bar_w, 0.56,
-                facecolor=bar_color, edgecolor="none", zorder=4,
+                (samples_x0, y - 0.28), max(s_w, 0.0015), 0.56,
+                facecolor=bar_color, edgecolor="none", zorder=1.5,
+            ))
+
+        # ---- edge-coverage bar ----
+        # Fraction of the usable a interval that was actually sampled; the
+        # unfilled remainder is what the surrogate must extrapolate over.
+        c_w = cover_w * (coverage if coverage == coverage else 0.0)
+        c_w = max(0.0, min(c_w, cover_w))
+        ax_table.add_patch(Rectangle(
+            (cover_x0, y - 0.28), cover_w, 0.56,
+            facecolor="white", edgecolor="0.80", linewidth=0.4, zorder=1,
+        ))
+        if c_w > 0:
+            ax_table.add_patch(Rectangle(
+                (cover_x0, y - 0.28), c_w, 0.56,
+                facecolor="#e08a3c", edgecolor="none", zorder=1.5,
             ))
 
         # ---- red cross marking a sweep that stops short of the edge ----
         if leaf.needs_extension:
             ax_table.plot(gap_x, y, marker="X", markersize=5.0,
-                          color="#c62828", markeredgewidth=0.0, zorder=5)
+                          color="#c62828", markeredgewidth=0.0, zorder=6)
 
         prev = leaf.levels
-
-    # legend line for the marker, placed under the header rule on the right
-    n_gap = sum(1 for lf in leaves if lf.needs_extension)
-    ax_table.plot(gap_x, 0, marker="X", markersize=5.0, color="#c62828",
-                  markeredgewidth=0.0, zorder=5)
-    ax_table.text(gap_x + 0.02, 0, f"{n_gap} need more",
-                  fontsize=font_pt - 0.5, family="monospace",
-                  va="center", color="#c62828")
-    ax_table.text(bar_x0, 0.72, "bar = fraction of usable a sampled",
-                  fontsize=font_pt - 1.0, family="monospace",
-                  va="center", color="0.45")
+        prev_p_ratio = leaf.levels[0]
 
     # ---- summary panel ----------------------------------------------
-    ax_summary.set_ylim(n_rows + 2, 0)
-    ax_summary.text(0.0, 0, summary, fontsize=font_pt, family="monospace",
-                    va="top", linespacing=1.45)
+    # The panel holds free-form text whose lines can be long. It is drawn with
+    # clip_on=False so nothing is cut off at the axes edge, and its own y-limit
+    # is set from the line count so the text is not squeezed vertically either.
+    n_summary_lines = max(1, summary.count("\n") + 1)
+    ax_summary.set_ylim(n_summary_lines + 1, 0)
+    ax_summary.text(
+        0.0, 0, summary,
+        fontsize=summary_font_pt, family="monospace",
+        va="top", ha="left", linespacing=1.45, clip_on=False,
+    )
 
     fig.savefig(out_path, facecolor="white")
     plt.close(fig)
