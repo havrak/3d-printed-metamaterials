@@ -15,6 +15,7 @@ pdfa.xmpi
 *.mexa64
 *.lot
 *.run.xml
+venv/
 build/
 _minted*
 *figure[0-9]*.dpth
@@ -29,3 +30,11 @@ print_test_stl
 knowledge_base/
 *-blx.bib
 .knowledge_base_resolved
+feasibility study/simulations/CST/
+feasibility study/simulations/CST/
+feasibility study/simulations/MATLAB/phase_export.eps
+feasibility study/simulations/coverage.csv
+feasibility study/simulations/data/pillar/
+feasibility study/simulations/data/void/
+feasibility study/simulations/simulations.code-workspace
+

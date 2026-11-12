@@ -46,6 +46,79 @@ TUNING = "a"
 # produced by different export paths do not split a group.
 VALUE_TOL = 1e-6
 
+# ---- geometry limit -------------------------------------------------------
+#
+# The ellipse major axis is rotated 45 degrees, so its axis-aligned bounding
+# box half-extent is sqrt((a^2 + b^2)/2) with b = a/ratio. Requiring that to
+# stay inside the cell gives the largest usable semi-major axis:
+#
+#     sqrt((a^2 + (a/ratio)^2)/2) <= P/2
+#     a <= (P/2) * sqrt(2) / sqrt(1 + 1/ratio^2)
+#
+# A larger ratio therefore permits a longer major axis, which is why a sweep
+# that shares one upper limit across several ratios never reaches the edge for
+# the more elongated ones.
+#
+# GEOMETRIC_CLEARANCE_MM is the allowed gap between the ellipse bounding box
+# and the cell wall. It is NOT the manufacturability clearance used elsewhere:
+# 0.2 mm in dataExplorer reflects what an FDM nozzle can print, whereas for
+# coverage of the surrogate's input domain the ellipse may legitimately touch
+# the wall, since such a cell is still geometrically valid. Keep this at zero
+# unless a specific study needs headroom.
+C0_MM_GHZ = 299.792458      # mm * GHz
+F0_GHZ = 30.0
+LAMBDA0_MM = C0_MM_GHZ / F0_GHZ
+GEOMETRIC_CLEARANCE_MM = 0.0    # purely geometric; not a print constraint
+EDGE_MARGIN_MM = 0.01           # stay just inside the limit, for rounding
+TARGET_STEP_MM = 0.02           # largest acceptable spacing of new samples
+
+
+def max_major_axis(
+    p_ratio: float,
+    ratio: float,
+    clearance_mm: float = GEOMETRIC_CLEARANCE_MM,
+) -> float:
+    """Largest semi-major axis whose bounding box still fits inside the cell."""
+    cell_mm = p_ratio * LAMBDA0_MM
+    half = cell_mm / 2.0 - clearance_mm
+    if half <= 0 or ratio <= 0:
+        return float("nan")
+    return half * (2.0 ** 0.5) / (1.0 + 1.0 / ratio ** 2) ** 0.5
+
+
+def extend_sweep(
+    a_max: float,
+    p_ratio: float,
+    ratio: float,
+    step_mm: float = TARGET_STEP_MM,
+    margin_mm: float = EDGE_MARGIN_MM,
+) -> tuple[float, float, int] | None:
+    """
+    Work out the extra samples needed to reach the geometric edge.
+
+    Returns (start, end, n) or None when the sweep already reaches the edge.
+    The new interval begins one step after the last sampled point and ends as
+    close to the limit as a step of at most `step_mm` allows.
+    """
+    limit = max_major_axis(p_ratio, ratio) - margin_mm
+    if not (limit == limit) or a_max >= limit:      # NaN or already long enough
+        return None
+
+    start = a_max + step_mm
+    if start > limit:
+        return None                                  # gap already below one step
+
+    n_new = int((limit - a_max) / step_mm)           # whole steps only
+    if n_new < 1:
+        return None
+
+    end = a_max + n_new * step_mm
+    # the final point should land at the limit rather than short of it, as long
+    # as doing so does not exceed the step
+    if limit - end <= step_mm:
+        end = limit
+    return start, end, n_new
+
 
 # --------------------------------------------------------------------------- #
 # Parsing
@@ -64,6 +137,37 @@ class Leaf:
     @property
     def a_span(self) -> float:
         return self.a_max - self.a_min
+
+    # ---- geometry -----------------------------------------------------
+    @property
+    def p_ratio(self) -> float:
+        return self.levels[LEVELS.index("P_ratio")]
+
+    @property
+    def ratio(self) -> float:
+        return self.levels[LEVELS.index("ratio")]
+
+    @property
+    def a_limit(self) -> float:
+        """Largest usable semi-major axis for this cell and elongation."""
+        return max_major_axis(self.p_ratio, self.ratio)
+
+    @property
+    def extension(self) -> tuple[float, float, int] | None:
+        """Extra sweep needed to reach the edge, or None if already there."""
+        return extend_sweep(self.a_max, self.p_ratio, self.ratio)
+
+    @property
+    def needs_extension(self) -> bool:
+        return self.extension is not None
+
+    @property
+    def a_coverage(self) -> float:
+        """Fraction of the usable interval that was actually sampled."""
+        limit = self.a_limit - EDGE_MARGIN_MM
+        if not (limit == limit) or limit <= 0:
+            return float("nan")
+        return self.a_max / limit
 
 
 def _split_strip(line: str) -> list[str]:
@@ -224,7 +328,8 @@ def render_tree(leaves: list[Leaf], top: int | None) -> str:
     A parent value is printed only on the first row of its block, so the
     grouping is visible as blank space and the eye can follow one branch.
     """
-    headers = LEVELS + ["n", "a_min", "a_max", "span", "dir"]
+    headers = LEVELS + ["n", "a_min", "a_max", "a_lim",
+                        "new_from", "new_to", "n_new", "dir"]
     widths = [max(len(h), 7) for h in headers]
 
     out: list[str] = []
@@ -244,11 +349,25 @@ def render_tree(leaves: list[Leaf], top: int | None) -> str:
                 cells.append("")          # unchanged prefix: leave blank
             else:
                 cells.append(_fmt(value))
+
+        limit = leaf.a_limit
+        ext = leaf.extension
+        if ext is None:
+            ext_from = ext_to = ext_n = "-"
+        else:
+            start, end, n_new = ext
+            ext_from = f"{start:.2f}"
+            ext_to = f"{end:.2f}"
+            ext_n = str(n_new)
+
         cells += [
             str(leaf.n_samples),
             _fmt(leaf.a_min),
             _fmt(leaf.a_max),
-            _fmt(leaf.a_span),
+            f"{limit:.2f}" if limit == limit else "nan",
+            ext_from,
+            ext_to,
+            ext_n,
             leaf.source,
         ]
         out.append("  ".join(c.ljust(w) for c, w in zip(cells, widths)))
@@ -289,6 +408,32 @@ def render_summary(leaves: list[Leaf]) -> str:
     out.append("a samples per leaf:")
     out.append(f"  min {min(counts)}   median {sorted(counts)[len(counts)//2]}"
                f"   max {max(counts)}")
+
+    # ---- geometric edge coverage --------------------------------------
+    # A sweep that stops short of the cell boundary leaves the most extreme
+    # geometry unsampled, which is exactly the region the surrogate must
+    # interpolate at the edge of its domain.
+    needs = [lf for lf in leaves if lf.needs_extension]
+    extra = sum(lf.extension[2] for lf in needs)
+
+    out.append("")
+    out.append("geometric edge coverage:")
+    out.append(f"  sweep ends short of the edge : {len(needs)} of {len(leaves)}")
+    out.append(f"  additional runs required     : {extra}")
+    if needs:
+        # the widest gaps first, since those distort the surrogate most
+        worst = sorted(
+            needs,
+            key=lambda lf: (lf.a_limit - lf.a_max) / max(lf.a_limit, 1e-9),
+            reverse=True,
+        )[:5]
+        out.append("  largest relative gaps:")
+        for lf in worst:
+            gap = lf.a_limit - lf.a_max
+            pct = 100.0 * gap / lf.a_limit if lf.a_limit else float("nan")
+            level_txt = " ".join(f"{n}={_fmt(v)}" for n, v in zip(LEVELS, lf.levels))
+            out.append(f"    {level_txt}  a_max {lf.a_max:.2f} of "
+                       f"{lf.a_limit:.2f}  ({pct:.0f}% short)")
 
     return "\n".join(out)
 
@@ -379,16 +524,19 @@ def render_image(leaves: list[Leaf], summary: str, out_path: Path) -> bool:
 
     # ---- header ------------------------------------------------------
     # column x positions as fractions of the table width
-    headers = LEVELS + ["n", "a_min", "a_max", "span"]
-    col_x = [0.00, 0.11, 0.22, 0.34, 0.45, 0.53, 0.61, 0.69]
-    bar_x0 = 0.78                # left edge of the sample-count bar column
-    bar_max_w = 0.20
+    headers = LEVELS + ["n", "a_max", "a_lim", "new to", "n_new"]
+    col_x = [0.00, 0.10, 0.20, 0.31, 0.41, 0.475, 0.545, 0.615]
+    bar_x0 = 0.66                # left edge of the coverage bar column
+    bar_max_w = 0.13
+    gap_x = 0.86                 # red marker column
 
     for x, name in zip(col_x, headers):
         ax_table.text(x, 0, name, fontsize=head_pt, fontweight="bold",
                       family="monospace", va="center")
-    ax_table.text(bar_x0, 0, "samples", fontsize=head_pt, fontweight="bold",
-                  family="monospace", va="center")
+    ax_table.text(bar_x0, 0, "edge cover", fontsize=head_pt,
+                  fontweight="bold", family="monospace", va="center")
+    ax_table.text(gap_x, 0, "gap", fontsize=head_pt,
+                  fontweight="bold", family="monospace", va="center")
 
     ax_table.plot([0, 1], [0.5, 0.5], color="0.3", linewidth=0.8)
 
@@ -452,23 +600,54 @@ def render_image(leaves: list[Leaf], summary: str, out_path: Path) -> bool:
             )
 
         # ---- numeric columns ----
+        limit = leaf.a_limit
+        coverage = leaf.a_coverage
+        ext = leaf.extension
+        ext_to = f"{ext[1]:.2f}" if ext else "-"
+        ext_n = str(ext[2]) if ext else "-"
+
         for x, cell in zip(col_x[4:], [
             str(leaf.n_samples),
-            _fmt(leaf.a_min),
-            _fmt(leaf.a_max),
-            _fmt(leaf.a_span),
+            f"{leaf.a_max:.2f}",
+            f"{limit:.2f}" if limit == limit else "nan",
+            ext_to,
+            ext_n,
         ]):
             ax_table.text(x, y, cell, fontsize=font_pt,
                           family="monospace", va="center", zorder=3)
 
-        # ---- sample-count bar ----
-        w = bar_max_w * (leaf.n_samples / n_max) if n_max else 0.0
+        # ---- edge-coverage bar ----
+        # filled to the fraction of the usable interval that was sampled;
+        # the unfilled remainder is the region the surrogate must extrapolate
+        bar_w = bar_max_w * (coverage if coverage == coverage else 0.0)
+        bar_w = max(0.0, min(bar_w, bar_max_w))
         ax_table.add_patch(Rectangle(
-            (bar_x0, y - 0.30), max(w, 0.001), 0.60,
-            facecolor=bar_color, edgecolor="none", zorder=3,
+            (bar_x0, y - 0.28), bar_max_w, 0.56,
+            facecolor="0.90", edgecolor="none", zorder=3,
         ))
+        if bar_w > 0:
+            ax_table.add_patch(Rectangle(
+                (bar_x0, y - 0.28), bar_w, 0.56,
+                facecolor=bar_color, edgecolor="none", zorder=4,
+            ))
+
+        # ---- red cross marking a sweep that stops short of the edge ----
+        if leaf.needs_extension:
+            ax_table.plot(gap_x, y, marker="X", markersize=5.0,
+                          color="#c62828", markeredgewidth=0.0, zorder=5)
 
         prev = leaf.levels
+
+    # legend line for the marker, placed under the header rule on the right
+    n_gap = sum(1 for lf in leaves if lf.needs_extension)
+    ax_table.plot(gap_x, 0, marker="X", markersize=5.0, color="#c62828",
+                  markeredgewidth=0.0, zorder=5)
+    ax_table.text(gap_x + 0.02, 0, f"{n_gap} need more",
+                  fontsize=font_pt - 0.5, family="monospace",
+                  va="center", color="#c62828")
+    ax_table.text(bar_x0, 0.72, "bar = fraction of usable a sampled",
+                  fontsize=font_pt - 1.0, family="monospace",
+                  va="center", color="0.45")
 
     # ---- summary panel ----------------------------------------------
     ax_summary.set_ylim(n_rows + 2, 0)
@@ -481,18 +660,38 @@ def render_image(leaves: list[Leaf], summary: str, out_path: Path) -> bool:
 
 
 def write_csv(leaves: list[Leaf], out_csv: Path) -> None:
-    """One row per leaf, same columns as the console table."""
-    header = LEVELS + ["n_samples", "a_min", "a_max", "a_span", "source_dir"]
+    """
+    One row per leaf, including the geometry limit and the extra sweep needed.
+
+    `extend_from` / `extend_to` / `extend_n` are empty when the sweep already
+    reaches the cell edge.
+    """
+    header = LEVELS + [
+        "n_samples", "a_min", "a_max", "a_span",
+        "a_limit", "coverage", "extend_from", "extend_to", "extend_n",
+        "source_dir",
+    ]
     lines = ["\t".join(header)]
+
     for leaf in leaves:
+        limit = leaf.a_limit
+        coverage = leaf.a_coverage
+        ext = leaf.extension
+
         cells = [_fmt(v) for v in leaf.levels] + [
             str(leaf.n_samples),
             _fmt(leaf.a_min),
             _fmt(leaf.a_max),
-            _fmt(leaf.a_span),
+            f"{leaf.a_span:.3f}",
+            f"{limit:.4f}" if limit == limit else "",
+            f"{coverage:.4f}" if coverage == coverage else "",
+            f"{ext[0]:.3f}" if ext else "",
+            f"{ext[1]:.3f}" if ext else "",
+            str(ext[2]) if ext else "",
             leaf.source,
         ]
         lines.append("\t".join(cells))
+
     out_csv.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
